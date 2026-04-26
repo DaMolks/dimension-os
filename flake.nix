@@ -37,6 +37,7 @@
         remote = import ./modules/remote;
         services = import ./modules/services;
         storage = import ./modules/storage;
+        theme = import ./modules/theme;
       };
     };
 }

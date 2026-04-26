@@ -4,7 +4,30 @@ Ce document decrit la direction du design de Dimension : identite visuelle,
 composants de l'interface, strategie d'integration et limites actuelles.
 
 Il sert de reference pour les futures phases d'implementation graphique.
-Aucun thème n'est encore installe.
+
+---
+
+## Etat d'implementation actuel
+
+Le module `modules/theme` pose uniquement les paquets visuels de base.
+Aucun thème n'est applique automatiquement : la selection se fait via
+KDE System Settings ou les futurs outils Dimension.
+
+Paquets installes quand `dimension.theme.enable = true` :
+
+| Paquet                           | Role                                      |
+|----------------------------------|-------------------------------------------|
+| `papirus-icon-theme`             | Pack d'icones Papirus                     |
+| `layan-cursors`                  | Curseur de la famille Layan               |
+| `kdePackages.qtstyleplugin-kvantum` | Moteur de thème Qt SVG (Kvantum)       |
+
+Note : `layan-kde` (thème Plasma complet) n'est pas package dans nixpkgs.
+Un scheme de couleurs KDE dedie sera ajoute dans une prochaine etape.
+
+Le theme est active automatiquement pour toutes les editions avec desktop
+(`dimension.theme.enable = lib.mkDefault (edition != "server-headless")`).
+L'edition `server-headless` (dont `main` en configuration actuelle) ne
+l'active pas.
 
 ---
 

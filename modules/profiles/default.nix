@@ -11,6 +11,7 @@ in
     ../node
     ../remote
     ../storage
+    ../theme
   ];
 
   options.dimension.edition = lib.mkOption {
@@ -34,5 +35,6 @@ in
     node.enable = lib.mkDefault true;
     remote.enable = lib.mkDefault true;
     storage.enable = lib.mkDefault true;
+    theme.enable = lib.mkDefault (cfg.edition != "server-headless");
   };
 }

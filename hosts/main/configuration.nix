@@ -11,6 +11,7 @@
     ../../modules/profiles
     ../../modules/remote
     ../../modules/storage
+    ../../modules/theme
   ];
 
   dimension.edition = lib.mkDefault "server-headless";
