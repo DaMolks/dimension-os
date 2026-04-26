@@ -9,15 +9,60 @@ exposee sur le LAN ou sur Internet dans son etat actuel.
 
 ## Configuration par defaut
 
-| Parametre | Valeur        |
-|-----------|---------------|
-| Host      | `127.0.0.1`   |
-| Port      | `8787`        |
-| Protocole | HTTP (pas TLS)|
+| Parametre      | Valeur        |
+|----------------|---------------|
+| Host           | `127.0.0.1`   |
+| Port           | `8787`        |
+| Protocole      | HTTP (pas TLS)|
+| Authentification | Bearer token (optionnel, voir ci-dessous) |
 
 Le hub ecoute uniquement sur `127.0.0.1` par defaut.
 Aucun port n'est ouvert dans le firewall.
 Aucune interface reseau externe n'est visee.
+
+---
+
+## Authentification
+
+L'authentification est controlee par l'option Nix `dimension.hub.devTokenFile`.
+
+### Mode sans token (defaut)
+
+Quand `devTokenFile` est vide (defaut), le Hub fonctionne en mode
+developpement non authentifie. Il loggue un warning au demarrage :
+
+```
+WARNING: unauthenticated local dev mode (no devTokenFile configured)
+```
+
+Ce mode n'est acceptable que si le Hub reste bind sur `127.0.0.1`.
+
+### Mode avec token
+
+Quand `devTokenFile` pointe vers un fichier contenant un token :
+
+```nix
+dimension.hub.devTokenFile = "/run/credentials/dimension-hub.service/dev-token";
+```
+
+Le Hub lit le token au demarrage et exige pour les endpoints proteges :
+
+```
+Authorization: Bearer <token>
+```
+
+Le token n'est jamais loggue. Il n'est jamais stocke dans Git.
+
+### Generer un token de developpement local
+
+```sh
+# generer et ecrire le token dans un fichier hors Git
+openssl rand -hex 32 > /etc/dimension/hub/dev-token
+chmod 600 /etc/dimension/hub/dev-token
+chown dimension-hub:dimension-hub /etc/dimension/hub/dev-token
+```
+
+Ce chemin est deja inclus dans les `ReadWritePaths` autorises pour le service.
 
 ---
 
@@ -26,6 +71,8 @@ Aucune interface reseau externe n'est visee.
 ### GET /ping
 
 Verifie que le Hub est actif et repond.
+
+Cet endpoint est **public** : aucun token requis.
 
 **Requete :**
 
@@ -49,6 +96,9 @@ ok
 ### POST /nodes/ping
 
 Enregistre ou met a jour un node dans le registre local du Hub.
+
+Cet endpoint est **protege** : requiert `Authorization: Bearer <token>` si
+`devTokenFile` est configure.
 
 Le node poste son identity.json. Le Hub extrait `node_id` et `hostname`,
 puis stocke ou actualise l'entree dans `nodes.json`.
@@ -74,11 +124,21 @@ puis stocke ou actualise l'entree dans `nodes.json`.
 Seuls `node_id` et `hostname` sont lus et stockes par le Hub.
 Les autres champs du payload sont ignores.
 
-**Requete :**
+**Requete (mode non authentifie) :**
 
 ```sh
 curl --request POST \
      --header 'Content-Type: application/json' \
+     --data '{"node_id":"550e8400-e29b-41d4-a716-446655440000","hostname":"my-machine"}' \
+     http://127.0.0.1:8787/nodes/ping
+```
+
+**Requete (mode avec token) :**
+
+```sh
+curl --request POST \
+     --header 'Content-Type: application/json' \
+     --header 'Authorization: Bearer <token>' \
      --data '{"node_id":"550e8400-e29b-41d4-a716-446655440000","hostname":"my-machine"}' \
      http://127.0.0.1:8787/nodes/ping
 ```
@@ -88,6 +148,7 @@ Ou en postant directement l'identity.json du node :
 ```sh
 curl --request POST \
      --header 'Content-Type: application/json' \
+     --header 'Authorization: Bearer <token>' \
      --data-binary @/var/lib/dimension/node/identity.json \
      http://127.0.0.1:8787/nodes/ping
 ```
@@ -103,10 +164,11 @@ ok
 
 **Reponses erreur :**
 
-| Code | Corps            | Cause                                 |
-|------|------------------|---------------------------------------|
-| 400  | `invalid json`   | Corps non parseable comme JSON        |
-| 400  | `missing node_id`| Champ `node_id` absent ou vide        |
+| Code | Corps            | Cause                                        |
+|------|------------------|----------------------------------------------|
+| 401  | `unauthorized`   | Token absent ou incorrect (mode avec token)  |
+| 400  | `invalid json`   | Corps non parseable comme JSON               |
+| 400  | `missing node_id`| Champ `node_id` absent ou vide               |
 
 ---
 
@@ -114,10 +176,19 @@ ok
 
 Retourne la liste de tous les nodes enregistres dans le registre local.
 
-**Requete :**
+Cet endpoint est **protege** : requiert `Authorization: Bearer <token>` si
+`devTokenFile` est configure.
+
+**Requete (mode non authentifie) :**
 
 ```sh
 curl http://127.0.0.1:8787/nodes
+```
+
+**Requete (mode avec token) :**
+
+```sh
+curl --header 'Authorization: Bearer <token>' http://127.0.0.1:8787/nodes
 ```
 
 **Reponse succes :**
@@ -149,7 +220,11 @@ Si aucun node n'est enregistre, la reponse est un tableau vide :
 | `hostname`  | string | Nom d'hote (vide si non fourni par le node)    |
 | `last_seen` | string | Horodatage ISO 8601 du dernier ping recu       |
 
-**Reponse erreur :** aucune (retourne toujours un tableau JSON valide).
+**Reponses erreur :**
+
+| Code | Corps          | Cause                                       |
+|------|----------------|---------------------------------------------|
+| 401  | `unauthorized` | Token absent ou incorrect (mode avec token) |
 
 ---
 
@@ -178,15 +253,17 @@ Lors d'un `POST /nodes/ping` :
 Cette API est une API de developpement local minimal.
 
 - API locale uniquement : le Hub ecoute sur `127.0.0.1` par defaut.
-- Aucune authentification : toute requete est acceptee sans verification d'identite.
-- Aucun pairing : n'importe quel client peut s'enregistrer comme node.
-- Aucun TLS : les communications sont en clair.
+- Authentification optionnelle par token local : sans `devTokenFile`, toute
+  requete est acceptee sans verification d'identite.
+- Le token est un secret partagé simple, pas une authentification forte.
+- Aucun pairing : n'importe quel client connaissant le token peut s'enregistrer.
+- Aucun TLS : les communications sont en clair (acceptable sur loopback uniquement).
 - Aucun WireGuard : le Hub n'est pas integre au reseau VPN.
 - Pas de suppression de node : aucun endpoint pour retirer un node du registre.
 - Pas de validation avancee : seul `node_id` est verifie (presence et type).
 - Pas de pagination : `GET /nodes` retourne tout le registre d'un coup.
 - Pas pret pour exposition LAN : cette configuration ne doit pas etre exposee sur
-  le reseau local tant que les points ci-dessus ne sont pas traites.
+  le reseau local dans son etat actuel.
 
 ---
 
@@ -194,19 +271,27 @@ Cette API est une API de developpement local minimal.
 
 **Ne pas exposer cette API sur le reseau.**
 
-Dans son etat actuel :
-- Un attaquant ayant acces au port `8787` peut lire tous les nodes enregistres.
-- Un attaquant peut injecter de faux nodes dans le registre.
-- Aucune identite n'est verifiee.
-- Aucun log d'audit lie a l'authentification n'est produit.
+Sans `devTokenFile` configure :
+- Toute requete locale est acceptee sans verification d'identite.
+- Ce mode ne doit etre utilise que sur `127.0.0.1` en environnement de
+  developpement local isole.
 
-**Prochaine etape obligatoire avant toute exposition reseau :**
+Avec `devTokenFile` configure :
+- Les endpoints proteges (`POST /nodes/ping`, `GET /nodes`) exigent un token.
+- Le token n'est jamais loggue.
+- Le token ne doit jamais etre stocke dans Git.
+- Ce mode reste insuffisant pour une exposition LAN.
 
-Avant de binder le Hub sur une interface LAN ou WireGuard, il faut au minimum :
+**Avant toute exposition reseau (LAN ou WireGuard) :**
 
-1. Implementer un token de developpement local (header `Authorization`).
-2. Valider le token sur chaque requete entrante.
-3. Documenter et tester le mecanisme avant toute ouverture de port.
+Le token de developpement local est une protection minimale de loopback.
+Elle ne suffit pas pour exposer le Hub sur le reseau. Il faudra au minimum :
+
+1. Authentification forte (pas un simple secret partage en clair sur HTTP).
+2. TLS ou tunnel chiffre (WireGuard).
+3. Pairing explicite et valide.
+4. Protocole documente et teste.
+5. Checklist [SECURITY.md](SECURITY.md) completement validee.
 
 Se referer a [SECURITY.md](SECURITY.md) pour la checklist complete avant
 exposition reseau.

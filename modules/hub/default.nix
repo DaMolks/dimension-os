@@ -18,6 +18,7 @@ log_dir = Path(os.environ.get("DIMENSION_HUB_LOG_DIR", "/var/log/dimension-hub")
 config_dir = Path(os.environ.get("DIMENSION_HUB_CONFIG_DIR", "/etc/dimension/hub"))
 host = os.environ.get("DIMENSION_HUB_HOST", ${builtins.toJSON cfg.host})
 port = int(os.environ.get("DIMENSION_HUB_PORT", ${toString cfg.port}))
+dev_token_file = os.environ.get("DIMENSION_HUB_DEV_TOKEN_FILE", "")
 id_file = state_dir / "id"
 identity_file = state_dir / "identity.json"
 nodes_file = state_dir / "nodes.json"
@@ -36,6 +37,21 @@ def log(message):
     print(line, flush=True)
 
 log("starting")
+
+dev_token = None
+if dev_token_file:
+    token_path = Path(dev_token_file)
+    if token_path.exists():
+        raw = token_path.read_text(encoding="utf-8").strip()
+        if raw:
+            dev_token = raw
+            log("dev token loaded")
+        else:
+            log("WARNING: dev token file is empty, falling back to unauthenticated local dev mode")
+    else:
+        log("WARNING: dev token file not found, falling back to unauthenticated local dev mode")
+else:
+    log("WARNING: unauthenticated local dev mode (no devTokenFile configured)")
 
 if not id_file.exists() or not id_file.read_text(encoding="utf-8").strip():
     id_file.write_text(str(uuid.uuid4()) + "\n", encoding="utf-8")
@@ -72,6 +88,14 @@ def current_timestamp():
 def log_value(value):
     return str(value).replace("\n", " ").replace("\r", " ")[:128]
 
+def check_auth(handler):
+    if dev_token is None:
+        return True
+    auth = handler.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return False
+    return auth[len("Bearer "):] == dev_token
+
 def read_nodes():
     data = json.loads(nodes_file.read_text(encoding="utf-8"))
     if not isinstance(data, list):
@@ -106,6 +130,10 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if self.path == "/nodes":
+            if not check_auth(self):
+                self.send_text(401, "unauthorized\n")
+                log(f"GET /nodes 401 from {self.client_address[0]}")
+                return
             with nodes_lock:
                 nodes = read_nodes()
             self.send_json(200, nodes)
@@ -123,6 +151,11 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Content-Length", "0")
             self.end_headers()
             log(f"POST {self.path} 404 from {self.client_address[0]}")
+            return
+
+        if not check_auth(self):
+            self.send_text(401, "unauthorized\n")
+            log(f"POST /nodes/ping 401 from {self.client_address[0]}")
             return
 
         length = int(self.headers.get("Content-Length", "0"))
@@ -206,6 +239,17 @@ in
       default = 8787;
       description = "Port used by the minimal Dimension Hub HTTP server.";
     };
+
+    devTokenFile = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = ''
+        Path to a file containing a bearer token used to authenticate requests
+        to protected Hub API endpoints (POST /nodes/ping, GET /nodes).
+        When empty, the Hub runs in unauthenticated local dev mode and logs a
+        warning. The token must never be stored in Git.
+      '';
+    };
   };
 
   config = lib.mkIf cfg.enable {
@@ -238,6 +282,7 @@ in
         RestartSec = "5s";
         StandardOutput = "journal";
         StandardError = "journal";
+        Environment = lib.optional (cfg.devTokenFile != "") "DIMENSION_HUB_DEV_TOKEN_FILE=${cfg.devTokenFile}";
         NoNewPrivileges = true;
         PrivateTmp = true;
         ProtectSystem = "strict";
