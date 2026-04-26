@@ -6,7 +6,9 @@ let
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from datetime import datetime, timezone
+import json
 import os
+import socket
 import sys
 import uuid
 
@@ -16,6 +18,7 @@ config_dir = Path(os.environ.get("DIMENSION_HUB_CONFIG_DIR", "/etc/dimension/hub
 host = os.environ.get("DIMENSION_HUB_HOST", ${builtins.toJSON cfg.host})
 port = int(os.environ.get("DIMENSION_HUB_PORT", ${toString cfg.port}))
 id_file = state_dir / "id"
+identity_file = state_dir / "identity.json"
 log_file = log_dir / "hub.log"
 
 state_dir.mkdir(parents=True, exist_ok=True)
@@ -37,6 +40,21 @@ if not id_file.exists() or not id_file.read_text(encoding="utf-8").strip():
     log("created hub id")
 else:
     log("hub id exists")
+
+hub_id = id_file.read_text(encoding="utf-8").strip()
+
+if not identity_file.exists() or not identity_file.read_text(encoding="utf-8").strip():
+    identity = {
+        "hub_id": hub_id,
+        "hostname": socket.gethostname(),
+        "created_at": datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds"),
+        "version": 1,
+    }
+    identity_file.write_text(json.dumps(identity, indent=2) + "\n", encoding="utf-8")
+    identity_file.chmod(0o644)
+    log("created hub identity")
+else:
+    log("hub identity exists")
 
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self):
