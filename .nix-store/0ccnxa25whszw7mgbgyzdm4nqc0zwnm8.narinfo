@@ -1,0 +1,9 @@
+StorePath: /nix/store/0ccnxa25whszw7mgbgyzdm4nqc0zwnm8-source
+URL: nar/0pnvk2wyap9pdclvb8fw8sb3hshazbvr05hxx42rdslbzqdi1lcp.nar.xz
+Compression: xz
+FileHash: sha256:0pnvk2wyap9pdclvb8fw8sb3hshazbvr05hxx42rdslbzqdi1lcp
+FileSize: 112
+NarHash: sha256:0sjjj9z1dhilhpc8pq4154czrb79z9cm044jvn75kxcjv6v5l2m5
+NarSize: 96
+References: 
+CA: fixed:r:sha256:0sjjj9z1dhilhpc8pq4154czrb79z9cm044jvn75kxcjv6v5l2m5
