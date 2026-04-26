@@ -6,6 +6,7 @@
   imports = [
     ../../modules/base
     ../../modules/hub
+    ../../modules/kde-config
     ../../modules/network
     ../../modules/node
     ../../modules/profiles

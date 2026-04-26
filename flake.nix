@@ -31,6 +31,7 @@
         base = import ./modules/base;
         desktop = import ./modules/desktop;
         hub = import ./modules/hub;
+        kde-config = import ./modules/kde-config;
         network = import ./modules/network;
         node = import ./modules/node;
         profiles = import ./modules/profiles;

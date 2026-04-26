@@ -7,6 +7,7 @@ in
   imports = [
     ../desktop
     ../hub
+    ../kde-config
     ../network
     ../node
     ../remote
@@ -31,6 +32,7 @@ in
   config.dimension = {
     desktop.enable = lib.mkDefault (cfg.edition != "server-headless");
     hub.enable = lib.mkDefault (cfg.edition == "server");
+    kde.enable = lib.mkDefault (cfg.edition != "server-headless");
     network.enable = lib.mkDefault true;
     node.enable = lib.mkDefault true;
     remote.enable = lib.mkDefault true;
