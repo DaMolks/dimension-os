@@ -4,6 +4,7 @@
   # Host-specific settings only. Shared configuration lives in modules/.
   # Keep this host limited to the base system for now.
   imports = [
+    ../../modules/apps
     ../../modules/base
     ../../modules/hub
     ../../modules/kde-config

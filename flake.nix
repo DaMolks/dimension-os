@@ -28,6 +28,7 @@
       nixosConfigurations = lib.mapAttrs (_: mkNixosConfiguration) hosts;
 
       nixosModules = {
+        apps = import ./modules/apps;
         base = import ./modules/base;
         desktop = import ./modules/desktop;
         hub = import ./modules/hub;

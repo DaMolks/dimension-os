@@ -5,6 +5,7 @@ let
 in
 {
   imports = [
+    ../apps
     ../desktop
     ../hub
     ../kde-config
@@ -30,6 +31,7 @@ in
   };
 
   config.dimension = {
+    apps.enable    = lib.mkDefault (cfg.edition != "server-headless");
     desktop.enable = lib.mkDefault (cfg.edition != "server-headless");
     hub.enable = lib.mkDefault (cfg.edition == "server");
     kde.enable = lib.mkDefault (cfg.edition != "server-headless");
