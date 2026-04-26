@@ -29,12 +29,78 @@ Le Hub repond actuellement :
 
 ---
 
+## Authentification locale par token (optionnel)
+
+Hub et Node supportent un token local de developpement.
+Ce token protege les endpoints `POST /nodes/ping` et `GET /nodes` sans exposer
+de secret dans Git.
+
+### Configurer le token cote Hub
+
+```nix
+dimension.hub.devTokenFile = "/etc/dimension/hub/dev-token";
+```
+
+Generer le token (hors Git, une seule fois) :
+
+```sh
+openssl rand -hex 32 > /etc/dimension/hub/dev-token
+chmod 640 /etc/dimension/hub/dev-token
+chown dimension-hub:dimension-hub /etc/dimension/hub/dev-token
+```
+
+### Configurer le token cote Node
+
+```nix
+dimension.node.hubTokenFile = "/etc/dimension/hub/dev-token";
+```
+
+Le meme fichier peut etre partage entre Hub et Node sur la meme machine.
+Le Node lit le fichier au demarrage et envoie le token dans le header
+`Authorization: Bearer <token>` a chaque `POST /nodes/ping`.
+
+La permission minimale pour que le Node puisse lire le fichier :
+
+```sh
+chmod 640 /etc/dimension/hub/dev-token
+chown dimension-hub:dimension-hub /etc/dimension/hub/dev-token
+# ajouter dimension-node au groupe dimension-hub si necessaire
+usermod -aG dimension-hub dimension-node
+```
+
+Ou creer un fichier dedie lisible par dimension-node :
+
+```sh
+install -m 640 -o dimension-node -g dimension-node \
+  /etc/dimension/hub/dev-token \
+  /etc/dimension/node/hub-token
+```
+
+```nix
+dimension.node.hubTokenFile = "/etc/dimension/node/hub-token";
+```
+
+### Sans token (mode developpement local non authentifie)
+
+Laisser `devTokenFile` et `hubTokenFile` vides.
+Le Hub loggue un warning au demarrage et accepte toutes les requetes.
+Ce mode ne doit etre utilise que si le Hub reste bind sur `127.0.0.1`.
+
+---
+
 ## Commandes utiles
 
-Tester directement le Hub :
+Tester directement le Hub (endpoint public) :
 
 ```sh
 curl http://127.0.0.1:8787/ping
+```
+
+Tester avec token :
+
+```sh
+TOKEN="$(cat /etc/dimension/hub/dev-token)"
+curl --header "Authorization: Bearer $TOKEN" http://127.0.0.1:8787/nodes
 ```
 
 Lire les logs systemd du Hub :
@@ -71,7 +137,7 @@ Ce test n'est pas expose sur le LAN :
 - aucune interface reseau externe n'est visee
 
 Ce test n'est pas securise pour un usage reseau :
-- pas d'authentification
+- le token local est un secret partage simple, pas une authentification forte
 - pas de pairing
 - pas de TLS
 - pas de WireGuard
@@ -81,7 +147,9 @@ Ce test n'est pas securise pour un usage reseau :
 Ce test est uniquement une etape de developpement locale.
 Il valide que :
 - le Hub peut repondre a `/ping`
-- le Node peut appeler `/ping`
+- le Node peut poster son identite au Hub via `POST /nodes/ping`
+- le Hub peut retourner la liste des nodes via `GET /nodes`
+- Hub et Node peuvent s'authentifier mutuellement par token local si configure
 - les deux services journalisent leur activite
 
 Toute exposition reseau devra faire l'objet d'une phase explicite.

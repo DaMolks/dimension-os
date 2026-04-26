@@ -8,6 +8,7 @@ let
     state_dir="''${DIMENSION_NODE_STATE_DIR:-/var/lib/dimension/node}"
     log_dir="''${DIMENSION_NODE_LOG_DIR:-/var/log/dimension}"
     hub_url=${lib.escapeShellArg cfg.hubUrl}
+    hub_token_file=${lib.escapeShellArg cfg.hubTokenFile}
     id_file="$state_dir/id"
     identity_file="$state_dir/identity.json"
     log_file="$log_dir/node.log"
@@ -66,14 +67,36 @@ EOF
       log "node identity exists"
     fi
 
+    hub_token=""
+    if [ -n "$hub_token_file" ]; then
+      if [ -s "$hub_token_file" ]; then
+        hub_token="$(${pkgs.coreutils}/bin/cat "$hub_token_file")"
+        if [ -n "$hub_token" ]; then
+          log "hub token loaded"
+        else
+          log "WARNING: hub token file is empty, sending unauthenticated requests"
+        fi
+      else
+        log "WARNING: hub token file not found or empty, sending unauthenticated requests"
+      fi
+    fi
+
     while true; do
       log "timestamp"
 
       if [ -n "$hub_url" ]; then
-        if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' --data-binary "@$identity_file" "$hub_url/nodes/ping" 2>&1 >/dev/null)"; then
-          log "hub node ping succeeded"
+        if [ -n "$hub_token" ]; then
+          if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' --header "Authorization: Bearer $hub_token" --data-binary "@$identity_file" "$hub_url/nodes/ping" 2>&1 >/dev/null)"; then
+            log "hub node ping succeeded"
+          else
+            log "hub node ping failed: $curl_error"
+          fi
         else
-          log "hub node ping failed: $curl_error"
+          if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' --data-binary "@$identity_file" "$hub_url/nodes/ping" 2>&1 >/dev/null)"; then
+            log "hub node ping succeeded"
+          else
+            log "hub node ping failed: $curl_error"
+          fi
         fi
       fi
 
@@ -89,6 +112,17 @@ in
       type = lib.types.str;
       default = "";
       description = "Optional Dimension Hub base URL used by the local node agent.";
+    };
+
+    hubTokenFile = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = ''
+        Path to a file containing a bearer token sent in the Authorization header
+        when the node posts its identity to the Hub (POST /nodes/ping).
+        When empty, requests are sent without authentication header.
+        The token must never be stored in Git.
+      '';
     };
   };
 
