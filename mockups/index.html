@@ -1,0 +1,991 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="dim">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dimension OS — Mockups</title>
+  <style>
+    /* =============================================
+       TOKENS
+       ============================================= */
+    :root[data-theme="dim"] {
+      --bg:         #181b25;
+      --bg2:        #1e2233;
+      --surface:    #252a3a;
+      --surface2:   #2d3347;
+      --panel:      rgba(22, 25, 36, 0.88);
+      --border:     rgba(255, 255, 255, 0.08);
+      --accent:     #4f9e6e;
+      --accent-dim: rgba(79, 158, 110, 0.18);
+      --accent-glow:rgba(79, 158, 110, 0.40);
+      --text:       #dde4f2;
+      --text2:      #8898bb;
+      --text3:      #4a5878;
+      --shadow:     rgba(0, 0, 0, 0.55);
+      --dock-bg:    rgba(20, 23, 34, 0.80);
+      --win-bg:     #222635;
+      --input-bg:   rgba(255, 255, 255, 0.06);
+      --term-bg:    #0c0f16;
+    }
+    :root[data-theme="light"] {
+      --bg:         #eef0f7;
+      --bg2:        #e4e7f2;
+      --surface:    #ffffff;
+      --surface2:   #f0f2fa;
+      --panel:      rgba(236, 238, 248, 0.92);
+      --border:     rgba(0, 0, 0, 0.08);
+      --accent:     #2d7a4f;
+      --accent-dim: rgba(45, 122, 79, 0.12);
+      --accent-glow:rgba(45, 122, 79, 0.30);
+      --text:       #1a1f30;
+      --text2:      #4a5572;
+      --text3:      #8898bb;
+      --shadow:     rgba(0, 0, 0, 0.13);
+      --dock-bg:    rgba(236, 238, 248, 0.85);
+      --win-bg:     #ffffff;
+      --input-bg:   rgba(0, 0, 0, 0.04);
+      --term-bg:    #f8f9fc;
+    }
+
+    /* =============================================
+       RESET + BASE
+       ============================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, 'Segoe UI', system-ui, sans-serif;
+      background: #0a0c14;
+      min-height: 100vh;
+    }
+
+    /* =============================================
+       NAV (always dark — meta-UI of the viewer)
+       ============================================= */
+    .nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+      display: flex; align-items: center; gap: 8px; padding: 10px 24px;
+      background: rgba(7, 9, 18, 0.94); backdrop-filter: blur(20px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .nav-logo {
+      font-size: 12px; font-weight: 700; color: #4f9e6e;
+      letter-spacing: 0.12em; text-transform: uppercase; margin-right: 14px;
+    }
+    .nav-tabs { display: flex; gap: 2px; flex: 1; }
+    .nav-tab {
+      padding: 6px 14px; border-radius: 7px; border: none;
+      background: transparent; color: #556; font-size: 12px;
+      cursor: pointer; transition: all 0.16s; font-family: inherit;
+    }
+    .nav-tab:hover  { background: rgba(255,255,255,0.05); color: #99a; }
+    .nav-tab.active { background: rgba(79,158,110,0.16); color: #4f9e6e; font-weight: 500; }
+    .nav-theme { display: flex; gap: 4px; }
+    .theme-btn {
+      padding: 5px 12px; border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.08); background: transparent;
+      color: #556; font-size: 11.5px; cursor: pointer; transition: all 0.16s;
+      font-family: inherit;
+    }
+    .theme-btn.active { border-color: #4f9e6e; color: #4f9e6e; }
+
+    /* =============================================
+       SCREENS
+       ============================================= */
+    .screens { padding-top: 52px; }
+    .screen  { display: none; }
+    .screen.active { display: block; }
+
+    /* shared desktop bg */
+    .desktop-bg {
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse 60% 50% at 25% 18%, rgba(79,158,110,0.14) 0%, transparent 100%),
+        radial-gradient(ellipse 50% 45% at 78% 78%, rgba(55,75,170,0.10) 0%, transparent 100%);
+    }
+
+    /* =============================================
+       SCREEN 1 — BUREAU + DOCK
+       ============================================= */
+    .desktop-viewport {
+      width: 100%; min-height: calc(100vh - 52px);
+      position: relative; overflow: hidden;
+    }
+    .desktop-viewport.desktop-bg { background: var(--bg); }
+
+    /* top bar */
+    .topbar {
+      position: absolute; top: 0; left: 0; right: 0; height: 32px; z-index: 10;
+      background: var(--panel); backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 14px; gap: 16px;
+    }
+    .topbar-app  { font-size: 12.5px; color: var(--text); font-weight: 600; }
+    .topbar-menu { font-size: 12px; color: var(--text2); cursor: default; }
+    .topbar-spacer { flex: 1; }
+    .topbar-widget { font-size: 11.5px; color: var(--text2); }
+    .topbar-clock  { font-size: 12.5px; color: var(--text); font-weight: 500; }
+
+    /* window chrome */
+    .window {
+      position: absolute;
+      background: var(--win-bg); border: 1px solid var(--border);
+      border-radius: 12px; box-shadow: 0 8px 32px var(--shadow); overflow: hidden;
+    }
+    .titlebar {
+      height: 34px; background: var(--surface2); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 12px; gap: 7px;
+    }
+    .tb-btn { width: 11px; height: 11px; border-radius: 50%; }
+    .tb-close  { background: #e05252; }
+    .tb-min    { background: #d4a217; }
+    .tb-max    { background: var(--accent); }
+    .tb-title  { font-size: 12px; color: var(--text2); margin-left: 8px; }
+
+    /* terminal window */
+    .win-term { top: 48px; left: 60px; width: 450px; height: 268px; }
+    .term-body {
+      background: var(--term-bg); height: calc(100% - 34px);
+      font-family: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+      font-size: 12px; padding: 10px 14px; overflow: hidden;
+    }
+    .tl { line-height: 1.65; white-space: pre; }
+    .tc-prompt { color: var(--accent); }
+    .tc-cmd    { color: var(--text); }
+    .tc-out    { color: var(--text3); }
+    .tc-ok     { color: var(--accent); }
+    .tc-cursor {
+      display: inline-block; width: 7px; height: 13px;
+      background: var(--accent); vertical-align: bottom; margin-left: 1px;
+      animation: blink 1.2s step-end infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:.85} 50%{opacity:0} }
+
+    /* files window */
+    .win-files { top: 58px; right: 60px; width: 340px; height: 298px; }
+    .files-toolbar {
+      height: 36px; background: var(--surface2); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; padding: 0 10px; gap: 5px;
+    }
+    .files-nav { width: 22px; height: 22px; border-radius: 5px;
+      background: var(--surface); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--text3); cursor: default;
+    }
+    .files-path {
+      flex: 1; font-size: 11px; color: var(--text2);
+      background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 5px; padding: 3px 8px;
+    }
+    .files-body { padding: 6px; }
+    .f-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 5px 8px; border-radius: 7px;
+      font-size: 12.5px; color: var(--text); cursor: default;
+      transition: background 0.12s;
+    }
+    .f-item:hover, .f-item.sel { background: var(--accent-dim); }
+    .f-icon {
+      width: 18px; height: 18px; border-radius: 3px;
+      flex-shrink: 0; font-size: 12px; line-height: 18px; text-align: center;
+    }
+    .fi-dir  { background: rgba(79,158,110,0.20); }
+    .fi-nix  { background: rgba(100,80,210,0.20); }
+    .fi-doc  { background: rgba(220,160,50,0.18); }
+
+    /* clock widget */
+    .desktop-clock {
+      position: absolute; bottom: 102px; left: 50%; transform: translateX(-50%);
+      text-align: center; pointer-events: none; user-select: none;
+    }
+    .dc-time {
+      font-size: 68px; font-weight: 200; color: var(--text); letter-spacing: -3px;
+      text-shadow: 0 4px 36px var(--shadow); line-height: 1;
+    }
+    .dc-date { font-size: 14px; color: var(--text2); margin-top: 8px; letter-spacing: 0.04em; }
+
+    /* dock */
+    .dock {
+      position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+      display: flex; align-items: flex-end; gap: 5px;
+      padding: 7px 10px; background: var(--dock-bg); backdrop-filter: blur(28px);
+      border: 1px solid var(--border); border-radius: 18px;
+      box-shadow: 0 4px 28px var(--shadow);
+    }
+    .d-icon {
+      width: 46px; height: 46px; border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; transition: transform 0.15s; position: relative; font-size: 20px;
+    }
+    .d-icon:hover { transform: translateY(-10px) scale(1.14); }
+    .d-icon.active::after {
+      content: ''; position: absolute; bottom: -5px; left: 50%;
+      transform: translateX(-50%); width: 4px; height: 4px;
+      border-radius: 50%; background: var(--accent);
+    }
+    .dock-sep { width: 1px; height: 28px; background: var(--border); margin: 0 3px; }
+    .di-term    { background: linear-gradient(145deg,#192519,#253525); }
+    .di-files   { background: linear-gradient(145deg,#1a2240,#243060); }
+    .di-browser { background: linear-gradient(145deg,#1a3030,#1e4040); }
+    .di-search  { background: var(--accent-dim); border: 1px solid rgba(79,158,110,0.28); }
+    .di-settings{ background: linear-gradient(145deg,#2a201a,#3c2c1a); }
+    .di-hub     { background: linear-gradient(145deg,rgba(79,158,110,0.20),rgba(79,158,110,0.06));
+                  border: 1px solid rgba(79,158,110,0.18); }
+
+    /* =============================================
+       SCREEN 2 — DIMENSION SEARCH
+       ============================================= */
+    .search-viewport {
+      width: 100%; min-height: calc(100vh - 52px);
+      display: flex; align-items: center; justify-content: center; position: relative;
+    }
+    .search-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.46); }
+
+    .search-card {
+      position: relative; z-index: 1; width: 620px;
+      background: var(--panel); backdrop-filter: blur(36px);
+      border: 1px solid var(--border); border-radius: 18px;
+      box-shadow: 0 20px 80px rgba(0,0,0,0.70); overflow: hidden;
+      animation: search-in 0.22s ease;
+    }
+    @keyframes search-in { from { opacity:0; transform:scale(.97) translateY(-6px); } to { opacity:1; transform:none; } }
+
+    .search-top {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 18px; border-bottom: 1px solid var(--border);
+    }
+    .search-glyph { font-size: 18px; color: var(--text3); flex-shrink: 0; }
+    .search-field {
+      flex: 1; background: none; border: none; outline: none;
+      font-size: 17px; color: var(--text); font-family: inherit;
+      caret-color: var(--accent);
+    }
+    .search-field::placeholder { color: var(--text3); }
+    .search-kbds { display: flex; gap: 4px; }
+    .kbd {
+      font-size: 10px; color: var(--text3); background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 4px; padding: 2px 5px;
+    }
+
+    .search-body { padding: 6px 8px; }
+    .s-section { margin-bottom: 4px; }
+    .s-label {
+      font-size: 10px; color: var(--text3); letter-spacing: 0.08em;
+      text-transform: uppercase; padding: 6px 10px 3px;
+    }
+    .s-result {
+      display: flex; align-items: center; gap: 12px;
+      padding: 9px 10px; border-radius: 9px; cursor: default; transition: background 0.1s;
+    }
+    .s-result:hover, .s-result.sel { background: var(--accent-dim); }
+    .s-result.sel .s-name { color: var(--accent); }
+    .s-ri {
+      width: 34px; height: 34px; border-radius: 8px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .sri-app { background: var(--surface2); }
+    .sri-file{ background: rgba(80,120,220,0.15); }
+    .sri-cmd { background: rgba(79,158,110,0.16); font-family: monospace;
+               font-size: 13px; color: var(--accent); font-weight: 700; }
+    .s-info  { flex: 1; }
+    .s-name  { font-size: 13px; color: var(--text); font-weight: 500; }
+    .s-sub   { font-size: 11px; color: var(--text2); margin-top: 1px; }
+    .s-badge { font-size: 10px; color: var(--text3); background: var(--surface2);
+               border-radius: 4px; padding: 2px 6px; }
+
+    .search-footer {
+      padding: 9px 18px; border-top: 1px solid var(--border);
+      display: flex; gap: 14px; align-items: center;
+    }
+    .s-hint { font-size: 11px; color: var(--text3); display: flex; gap: 4px; align-items: center; }
+
+    /* =============================================
+       SCREEN 3 — PANNEAU SYSTÈME
+       ============================================= */
+    .panel-viewport {
+      width: 100%; min-height: calc(100vh - 52px);
+      display: flex; position: relative; overflow: hidden;
+    }
+    .panel-bg {
+      flex: 1; padding: 52px 48px; opacity: 0.22; pointer-events: none;
+    }
+    .sys-panel {
+      width: 308px; flex-shrink: 0;
+      background: var(--panel); backdrop-filter: blur(32px);
+      border-left: 1px solid var(--border); padding: 18px 14px;
+      display: flex; flex-direction: column; gap: 11px; overflow-y: auto;
+      animation: panel-in 0.20s ease;
+    }
+    @keyframes panel-in { from { opacity:0; transform:translateX(18px); } to { opacity:1; transform:none; } }
+
+    .panel-dt { text-align: center; padding: 4px 0 0; }
+    .panel-time { font-size: 44px; font-weight: 200; color: var(--text); letter-spacing: -2px; line-height: 1; }
+    .panel-date { font-size: 12.5px; color: var(--text2); margin-top: 4px; }
+
+    .p-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 13px; padding: 12px 13px;
+    }
+    .p-card-label {
+      font-size: 10px; color: var(--text3); text-transform: uppercase;
+      letter-spacing: 0.08em; margin-bottom: 10px;
+    }
+    .quick-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 6px; }
+    .q-tile {
+      aspect-ratio: 1; border-radius: 9px; background: var(--surface2);
+      border: 1px solid var(--border);
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 3px; cursor: default;
+    }
+    .q-tile.on { background: var(--accent-dim); border-color: rgba(79,158,110,0.32); }
+    .qt-i { font-size: 16px; }
+    .qt-l { font-size: 8.5px; color: var(--text3); }
+    .q-tile.on .qt-l { color: var(--accent); }
+
+    .sl-row { display: flex; align-items: center; gap: 9px; margin-bottom: 9px; }
+    .sl-row:last-child { margin-bottom: 0; }
+    .sl-icon { font-size: 13px; color: var(--text3); width: 16px; text-align: center; }
+    .sl-track {
+      flex: 1; height: 4px; border-radius: 2px; background: var(--surface2);
+      position: relative;
+    }
+    .sl-fill  { height: 100%; border-radius: 2px; background: var(--accent); }
+    .sl-thumb {
+      position: absolute; top: 50%; transform: translate(-50%,-50%);
+      width: 14px; height: 14px; border-radius: 50%; background: var(--accent);
+      box-shadow: 0 2px 10px var(--accent-glow);
+    }
+    .sl-val { font-size: 11px; color: var(--text3); width: 26px; text-align: right; }
+
+    /* mini calendar */
+    .cal-hdr { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .cal-title { font-size: 13px; color: var(--text); font-weight: 500; }
+    .cal-nav   { font-size: 13px; color: var(--text3); cursor: default; user-select: none; }
+    .cal-grid  { display: grid; grid-template-columns: repeat(7,1fr); gap: 1px; text-align: center; }
+    .cal-dh    { font-size: 10px; color: var(--text3); padding: 2px 0; }
+    .cal-d     { font-size: 11.5px; color: var(--text2); padding: 4px 2px; border-radius: 5px; cursor: default; }
+    .cal-d.today { background: var(--accent); color: #fff; font-weight: 600; }
+    .cal-d.om    { color: var(--text3); }
+
+    /* =============================================
+       SCREEN 4 — LOGIN
+       ============================================= */
+    .login-viewport {
+      width: 100%; min-height: calc(100vh - 52px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+      background-image:
+        radial-gradient(ellipse 65% 55% at 50% 28%, rgba(79,158,110,0.16) 0%, transparent 100%),
+        radial-gradient(ellipse 40% 40% at 18% 80%, rgba(55,65,170,0.13) 0%, transparent 100%);
+    }
+    .login-card {
+      display: flex; flex-direction: column; align-items: center; gap: 18px;
+      animation: login-in 0.24s ease;
+    }
+    @keyframes login-in { from { opacity:0; transform:scale(.97); } to { opacity:1; transform:none; } }
+
+    .login-logomark {
+      width: 56px; height: 56px; border-radius: 16px;
+      background: var(--accent-dim); border: 1px solid rgba(79,158,110,0.28);
+      display: flex; align-items: center; justify-content: center;
+      box-shadow: 0 0 0 8px var(--accent-dim);
+    }
+    .login-logomark-inner {
+      width: 26px; height: 26px; border-radius: 7px; background: var(--accent); opacity: 0.92;
+      position: relative;
+    }
+    .login-logomark-inner::before {
+      content: ''; position: absolute; inset: 5px;
+      border: 2px solid rgba(255,255,255,0.55); border-radius: 3px;
+    }
+    .login-brand { font-size: 11.5px; color: var(--text3); letter-spacing: 0.18em; text-transform: uppercase; margin-top: -10px; }
+
+    .login-avatar {
+      width: 68px; height: 68px; border-radius: 50%;
+      background: var(--surface2); border: 2.5px solid var(--accent);
+      box-shadow: 0 0 0 5px var(--accent-dim);
+      display: flex; align-items: center; justify-content: center; font-size: 26px;
+    }
+    .login-user { font-size: 15px; color: var(--text); font-weight: 500; }
+
+    .login-input-wrap { position: relative; width: 272px; }
+    .login-input {
+      width: 100%; padding: 11px 42px 11px 15px;
+      background: var(--input-bg); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text); font-size: 14px;
+      outline: none; font-family: inherit; letter-spacing: 0.12em;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .login-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+    .login-eye {
+      position: absolute; right: 13px; top: 50%; transform: translateY(-50%);
+      font-size: 14px; color: var(--text3);
+    }
+    .login-btn {
+      width: 272px; padding: 11px; background: var(--accent);
+      color: #fff; font-size: 13.5px; font-weight: 600;
+      border: none; border-radius: 10px; cursor: pointer; font-family: inherit;
+      letter-spacing: 0.02em; transition: opacity 0.18s, box-shadow 0.18s;
+    }
+    .login-btn:hover { opacity: .88; box-shadow: 0 6px 26px var(--accent-glow); }
+    .login-links { display: flex; gap: 22px; }
+    .login-link { font-size: 12px; color: var(--text3); cursor: default; }
+
+    .login-footer {
+      position: absolute; bottom: 18px; left: 0; right: 0;
+      display: flex; justify-content: center; gap: 22px;
+    }
+    .login-footer-item { font-size: 11.5px; color: var(--text3); }
+
+    /* =============================================
+       SCREEN 5 — INSTALLATEUR
+       ============================================= */
+    .installer-viewport {
+      width: 100%; min-height: calc(100vh - 52px);
+      display: flex; align-items: center; justify-content: center; padding: 40px;
+    }
+    .installer-win {
+      width: 810px; height: 545px; background: var(--win-bg);
+      border: 1px solid var(--border); border-radius: 14px;
+      box-shadow: 0 16px 64px var(--shadow); display: flex; overflow: hidden;
+    }
+    .installer-side {
+      width: 214px; background: var(--surface2); border-right: 1px solid var(--border);
+      padding: 28px 16px; display: flex; flex-direction: column;
+    }
+    .inst-brand { margin-bottom: 22px; }
+    .inst-brand-name { font-size: 14px; font-weight: 700; color: var(--accent); letter-spacing: 0.05em; }
+    .inst-brand-sub  { font-size: 11px; color: var(--text3); margin-top: 2px; }
+    .inst-steps      { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+    .inst-step {
+      display: flex; align-items: center; gap: 9px;
+      padding: 7px 8px; border-radius: 7px; transition: background 0.12s;
+    }
+    .inst-step.active { background: var(--accent-dim); }
+    .inst-step-num {
+      width: 20px; height: 20px; border-radius: 50%;
+      border: 1.5px solid var(--border); background: var(--surface);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10.5px; color: var(--text3); font-weight: 700; flex-shrink: 0;
+    }
+    .inst-step.done   .inst-step-num { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .inst-step.active .inst-step-num {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+    .inst-step-label { font-size: 12.5px; color: var(--text3); }
+    .inst-step.active .inst-step-label { color: var(--accent); font-weight: 500; }
+    .inst-step.done   .inst-step-label { color: var(--text2); }
+    .inst-side-foot { margin-top: auto; }
+    .inst-prog-bar   { height: 3px; border-radius: 2px; background: var(--surface); margin-top: 12px; }
+    .inst-prog-fill  { height: 100%; border-radius: 2px; background: var(--accent); width: 43%; }
+    .inst-prog-label { font-size: 10px; color: var(--text3); margin-top: 5px; }
+
+    .installer-main {
+      flex: 1; padding: 28px 28px 20px; display: flex; flex-direction: column;
+    }
+    .inst-title { font-size: 18px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .inst-desc  { font-size: 12.5px; color: var(--text2); margin-bottom: 22px; }
+    .inst-content { flex: 1; overflow: auto; }
+
+    .part-list { display: flex; flex-direction: column; gap: 8px; }
+    .part-item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 11px 13px; border: 1px solid var(--border);
+      border-radius: 10px; cursor: default; transition: all 0.13s;
+    }
+    .part-item:hover { border-color: rgba(79,158,110,0.28); background: var(--accent-dim); }
+    .part-item.sel   { border-color: var(--accent); background: var(--accent-dim); }
+    .part-radio { width: 15px; height: 15px; border-radius: 50%; border: 1.5px solid var(--border); flex-shrink: 0; }
+    .part-item.sel .part-radio { border-color: var(--accent); background: var(--accent); box-shadow: inset 0 0 0 3px var(--win-bg); }
+    .part-info { flex: 1; }
+    .part-name { font-size: 12.5px; color: var(--text); font-weight: 500; margin-bottom: 4px; }
+    .part-bar  { height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface2); }
+    .part-fill { height: 100%; border-radius: 3px; }
+    .pf-nixos { background: linear-gradient(90deg, var(--accent), rgba(79,158,110,0.55)); width: 65%; }
+    .pf-ntfs  { background: linear-gradient(90deg, #4a80c4, rgba(74,128,196,0.55)); width: 40%; }
+    .pf-free  { background: linear-gradient(90deg, var(--text3), transparent); width: 14%; }
+    .part-meta { font-size: 11px; color: var(--text3); margin-top: 3px; }
+    .part-size { font-size: 12px; color: var(--text2); white-space: nowrap; }
+
+    .inst-warn {
+      margin-top: 14px; padding: 10px 13px;
+      background: var(--accent-dim); border: 1px solid rgba(79,158,110,0.28); border-radius: 9px;
+    }
+    .inst-warn-title { font-size: 12px; color: var(--accent); font-weight: 500; margin-bottom: 3px; }
+    .inst-warn-text  { font-size: 11.5px; color: var(--text2); }
+
+    .inst-footer {
+      display: flex; justify-content: space-between; align-items: center;
+      padding-top: 16px; border-top: 1px solid var(--border); margin-top: 16px;
+    }
+    .inst-step-label-footer { font-size: 11.5px; color: var(--text3); }
+    .inst-btns { display: flex; gap: 8px; }
+    .inst-btn {
+      padding: 9px 22px; border-radius: 7px; font-size: 13px; font-weight: 500;
+      cursor: default; border: none; font-family: inherit; transition: all 0.14s;
+    }
+    .inst-btn-back { background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+    .inst-btn-next { background: var(--accent); color: #fff; }
+    .inst-btn-next:hover { box-shadow: 0 4px 18px var(--accent-glow); }
+  </style>
+</head>
+<body>
+
+<!-- ===============================================
+     NAV
+     =============================================== -->
+<nav class="nav">
+  <span class="nav-logo">Dimension OS</span>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-screen="desktop">Bureau + Dock</button>
+    <button class="nav-tab" data-screen="search">Dimension Search</button>
+    <button class="nav-tab" data-screen="panel">Panneau système</button>
+    <button class="nav-tab" data-screen="login">Login</button>
+    <button class="nav-tab" data-screen="installer">Installateur</button>
+  </div>
+  <div class="nav-theme">
+    <button class="theme-btn active" data-theme="dim">Dim</button>
+    <button class="theme-btn" data-theme="light">Light</button>
+  </div>
+</nav>
+
+<div class="screens">
+
+  <!-- =============================================
+       SCREEN 1 — BUREAU + DOCK
+       ============================================= -->
+  <div id="screen-desktop" class="screen active">
+    <div class="desktop-viewport desktop-bg">
+
+      <div class="topbar">
+        <span class="topbar-app">Gestionnaire de fichiers</span>
+        <span class="topbar-menu">Fichier</span>
+        <span class="topbar-menu">Édition</span>
+        <span class="topbar-menu">Vue</span>
+        <span class="topbar-menu">Aller</span>
+        <div class="topbar-spacer"></div>
+        <span class="topbar-widget">🔋 87 %</span>
+        <span class="topbar-widget">📶 dim-net</span>
+        <span class="topbar-widget">🔊 64 %</span>
+        <span class="topbar-clock">dim 26 avr — 14:32</span>
+      </div>
+
+      <!-- Terminal -->
+      <div class="window win-term">
+        <div class="titlebar">
+          <div class="tb-btn tb-close"></div>
+          <div class="tb-btn tb-min"></div>
+          <div class="tb-btn tb-max"></div>
+          <span class="tb-title">Terminal</span>
+        </div>
+        <div class="term-body">
+          <div class="tl"><span class="tc-prompt">dim@dimension-main</span><span class="tc-cmd"> ~ $ nixos-rebuild switch --flake .#main</span></div>
+          <div class="tl"><span class="tc-out">building the system configuration...</span></div>
+          <div class="tl"><span class="tc-out">activating the configuration...</span></div>
+          <div class="tl"><span class="tc-ok">✓ dimension-hub: active (running)</span></div>
+          <div class="tl"><span class="tc-ok">✓ dimension-node: active (running)</span></div>
+          <div class="tl"> </div>
+          <div class="tl"><span class="tc-prompt">dim@dimension-main</span><span class="tc-cmd"> ~ $ curl -s localhost:8787/ping | python3 -m json.tool</span></div>
+          <div class="tl"><span class="tc-out">{</span></div>
+          <div class="tl"><span class="tc-out">    "status": "ok",</span></div>
+          <div class="tl"><span class="tc-out">    "host": "dimension-main"</span></div>
+          <div class="tl"><span class="tc-out">}</span></div>
+          <div class="tl"> </div>
+          <div class="tl"><span class="tc-prompt">dim@dimension-main</span><span class="tc-cmd"> ~ $ </span><span class="tc-cursor"></span></div>
+        </div>
+      </div>
+
+      <!-- Gestionnaire de fichiers -->
+      <div class="window win-files">
+        <div class="files-toolbar">
+          <div class="files-nav">‹</div>
+          <div class="files-nav">›</div>
+          <div class="files-nav">↑</div>
+          <div class="files-path">~/projets/custom-nixos</div>
+        </div>
+        <div class="files-body">
+          <div class="f-item"><div class="f-icon fi-dir">📁</div>docs</div>
+          <div class="f-item"><div class="f-icon fi-dir">📁</div>hosts</div>
+          <div class="f-item"><div class="f-icon fi-dir">📁</div>mockups</div>
+          <div class="f-item sel"><div class="f-icon fi-dir">📁</div>modules</div>
+          <div class="f-item"><div class="f-icon fi-nix">❄</div>flake.nix</div>
+          <div class="f-item"><div class="f-icon fi-nix">❄</div>flake.lock</div>
+          <div class="f-item"><div class="f-icon fi-doc">📄</div>README.md</div>
+        </div>
+      </div>
+
+      <!-- Clock widget -->
+      <div class="desktop-clock">
+        <div class="dc-time">14:32</div>
+        <div class="dc-date">Dimanche 26 avril 2026</div>
+      </div>
+
+      <!-- Dock -->
+      <div class="dock">
+        <div class="d-icon di-term active" title="Terminal">⌨</div>
+        <div class="d-icon di-files active" title="Fichiers">🗂</div>
+        <div class="d-icon di-browser" title="Navigateur">🌐</div>
+        <div class="dock-sep"></div>
+        <div class="d-icon di-search" title="Dimension Search"
+             style="font-size:18px;font-weight:700;color:var(--accent);font-family:serif">D</div>
+        <div class="dock-sep"></div>
+        <div class="d-icon di-settings" title="Paramètres">⚙</div>
+        <div class="d-icon di-hub" title="Dimension Hub"
+             style="font-size:17px;font-weight:700;color:var(--accent)">⬡</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============================================
+       SCREEN 2 — DIMENSION SEARCH
+       ============================================= -->
+  <div id="screen-search" class="screen">
+    <div class="search-viewport desktop-bg">
+      <div class="search-overlay"></div>
+      <div class="search-card">
+
+        <div class="search-top">
+          <span class="search-glyph">🔍</span>
+          <input class="search-field" type="text" placeholder="Rechercher…" value="dim" readonly>
+          <div class="search-kbds">
+            <span class="kbd">↑↓</span>
+            <span class="kbd">↵</span>
+            <span class="kbd">Esc</span>
+          </div>
+        </div>
+
+        <div class="search-body">
+
+          <div class="s-section">
+            <div class="s-label">Applications</div>
+            <div class="s-result sel">
+              <div class="s-ri sri-app" style="font-size:19px;font-weight:700;color:var(--accent)">⬡</div>
+              <div class="s-info">
+                <div class="s-name">Dimension Hub</div>
+                <div class="s-sub">Gestion des nœuds locaux</div>
+              </div>
+              <span class="s-badge">App</span>
+            </div>
+            <div class="s-result">
+              <div class="s-ri sri-app">⚙</div>
+              <div class="s-info">
+                <div class="s-name">Dimension Paramètres</div>
+                <div class="s-sub">Configuration système</div>
+              </div>
+              <span class="s-badge">App</span>
+            </div>
+          </div>
+
+          <div class="s-section">
+            <div class="s-label">Fichiers</div>
+            <div class="s-result">
+              <div class="s-ri sri-file">❄</div>
+              <div class="s-info">
+                <div class="s-name">flake.nix</div>
+                <div class="s-sub">~/projets/custom-nixos</div>
+              </div>
+              <span class="s-badge">Nix</span>
+            </div>
+            <div class="s-result">
+              <div class="s-ri sri-file">📄</div>
+              <div class="s-info">
+                <div class="s-name">THEME.md</div>
+                <div class="s-sub">~/projets/custom-nixos/docs</div>
+              </div>
+              <span class="s-badge">Markdown</span>
+            </div>
+          </div>
+
+          <div class="s-section">
+            <div class="s-label">Commandes</div>
+            <div class="s-result">
+              <div class="s-ri sri-cmd">&gt;_</div>
+              <div class="s-info">
+                <div class="s-name">nixos-rebuild switch</div>
+                <div class="s-sub">Reconstruire la configuration système</div>
+              </div>
+              <span class="s-badge">Shell</span>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="search-footer">
+          <span class="s-hint"><span class="kbd">↵</span> Ouvrir</span>
+          <span class="s-hint"><span class="kbd">⇧↵</span> Ouvrir dans Terminal</span>
+          <span class="s-hint" style="margin-left:auto;opacity:.6">Dimension Search</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============================================
+       SCREEN 3 — PANNEAU SYSTÈME
+       ============================================= -->
+  <div id="screen-panel" class="screen">
+    <div class="panel-viewport desktop-bg">
+
+      <!-- ghost du bureau à gauche -->
+      <div class="panel-bg">
+        <div style="font-size:56px;font-weight:200;color:var(--text);letter-spacing:-3px;margin-top:48px">14:32</div>
+        <div style="font-size:13px;color:var(--text2);margin-top:8px">Dimanche 26 avril 2026</div>
+      </div>
+
+      <div class="sys-panel">
+        <div class="panel-dt">
+          <div class="panel-time">14:32</div>
+          <div class="panel-date">Dimanche 26 avril 2026</div>
+        </div>
+
+        <!-- Accès rapide -->
+        <div class="p-card">
+          <div class="p-card-label">Accès rapide</div>
+          <div class="quick-grid">
+            <div class="q-tile on">  <span class="qt-i">📶</span><span class="qt-l">Réseau</span></div>
+            <div class="q-tile">     <span class="qt-i">🦷</span><span class="qt-l">Bluetooth</span></div>
+            <div class="q-tile on">  <span class="qt-i">🌙</span><span class="qt-l">Nuit</span></div>
+            <div class="q-tile">     <span class="qt-i">✈</span><span class="qt-l">Avion</span></div>
+          </div>
+        </div>
+
+        <!-- Contrôles -->
+        <div class="p-card">
+          <div class="p-card-label">Contrôles</div>
+          <div class="sl-row">
+            <span class="sl-icon">🔊</span>
+            <div class="sl-track">
+              <div class="sl-fill" style="width:64%"></div>
+              <div class="sl-thumb" style="left:64%"></div>
+            </div>
+            <span class="sl-val">64</span>
+          </div>
+          <div class="sl-row">
+            <span class="sl-icon">☀</span>
+            <div class="sl-track">
+              <div class="sl-fill" style="width:78%"></div>
+              <div class="sl-thumb" style="left:78%"></div>
+            </div>
+            <span class="sl-val">78</span>
+          </div>
+          <div class="sl-row">
+            <span class="sl-icon">🌡</span>
+            <div class="sl-track">
+              <div class="sl-fill" style="width:50%"></div>
+              <div class="sl-thumb" style="left:50%"></div>
+            </div>
+            <span class="sl-val">K°</span>
+          </div>
+        </div>
+
+        <!-- Calendrier — avril 2026 -->
+        <div class="p-card">
+          <div class="p-card-label">Calendrier</div>
+          <div class="cal-hdr">
+            <span class="cal-title">Avril 2026</span>
+            <span class="cal-nav">‹ ›</span>
+          </div>
+          <div class="cal-grid">
+            <div class="cal-dh">L</div><div class="cal-dh">M</div><div class="cal-dh">M</div>
+            <div class="cal-dh">J</div><div class="cal-dh">V</div><div class="cal-dh">S</div>
+            <div class="cal-dh">D</div>
+            <!-- sem 1 : Apr 1 = mercredi -->
+            <div class="cal-d om">30</div><div class="cal-d om">31</div>
+            <div class="cal-d">1</div><div class="cal-d">2</div>
+            <div class="cal-d">3</div><div class="cal-d">4</div><div class="cal-d">5</div>
+            <!-- sem 2 -->
+            <div class="cal-d">6</div><div class="cal-d">7</div><div class="cal-d">8</div>
+            <div class="cal-d">9</div><div class="cal-d">10</div>
+            <div class="cal-d">11</div><div class="cal-d">12</div>
+            <!-- sem 3 -->
+            <div class="cal-d">13</div><div class="cal-d">14</div><div class="cal-d">15</div>
+            <div class="cal-d">16</div><div class="cal-d">17</div>
+            <div class="cal-d">18</div><div class="cal-d">19</div>
+            <!-- sem 4 -->
+            <div class="cal-d">20</div><div class="cal-d">21</div><div class="cal-d">22</div>
+            <div class="cal-d">23</div><div class="cal-d">24</div>
+            <div class="cal-d">25</div><div class="cal-d today">26</div>
+            <!-- sem 5 -->
+            <div class="cal-d">27</div><div class="cal-d">28</div><div class="cal-d">29</div>
+            <div class="cal-d">30</div>
+            <div class="cal-d om">1</div><div class="cal-d om">2</div><div class="cal-d om">3</div>
+          </div>
+        </div>
+
+        <!-- Système -->
+        <div class="p-card">
+          <div class="p-card-label">Système</div>
+          <div style="font-size:12px;color:var(--text2);display:flex;flex-direction:column;gap:7px">
+            <div style="display:flex;justify-content:space-between">
+              <span>🔋 Batterie</span><span style="color:var(--accent)">87 %</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span>⬡ Hub</span><span style="color:var(--accent)">actif</span>
+            </div>
+            <div style="display:flex;justify-content:space-between">
+              <span>◎ Node</span><span style="color:var(--accent)">actif</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============================================
+       SCREEN 4 — LOGIN
+       ============================================= -->
+  <div id="screen-login" class="screen">
+    <div class="login-viewport desktop-bg">
+
+      <div class="login-card">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px">
+          <div class="login-logomark">
+            <div class="login-logomark-inner"></div>
+          </div>
+          <span class="login-brand">Dimension OS</span>
+        </div>
+
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:4px">
+          <div class="login-avatar">👤</div>
+          <span class="login-user">dim</span>
+        </div>
+
+        <div class="login-input-wrap">
+          <input class="login-input" type="password" placeholder="Mot de passe" value="••••••••" readonly>
+          <span class="login-eye">👁</span>
+        </div>
+
+        <button class="login-btn">Connexion</button>
+
+        <div class="login-links">
+          <span class="login-link">Changer d'utilisateur</span>
+          <span class="login-link">Éteindre</span>
+        </div>
+      </div>
+
+      <div class="login-footer">
+        <span class="login-footer-item">📶 dim-net</span>
+        <span class="login-footer-item">14:32 — dim 26 avr 2026</span>
+        <span class="login-footer-item">🌐 fr_FR</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============================================
+       SCREEN 5 — INSTALLATEUR
+       ============================================= -->
+  <div id="screen-installer" class="screen">
+    <div class="installer-viewport desktop-bg">
+      <div class="installer-win">
+
+        <div class="installer-side">
+          <div class="inst-brand">
+            <div class="inst-brand-name">Dimension</div>
+            <div class="inst-brand-sub">Installation</div>
+          </div>
+          <div class="inst-steps">
+            <div class="inst-step done">
+              <div class="inst-step-num">✓</div>
+              <span class="inst-step-label">Langue</span>
+            </div>
+            <div class="inst-step done">
+              <div class="inst-step-num">✓</div>
+              <span class="inst-step-label">Clavier</span>
+            </div>
+            <div class="inst-step active">
+              <div class="inst-step-num">3</div>
+              <span class="inst-step-label">Disque</span>
+            </div>
+            <div class="inst-step">
+              <div class="inst-step-num">4</div>
+              <span class="inst-step-label">Compte</span>
+            </div>
+            <div class="inst-step">
+              <div class="inst-step-num">5</div>
+              <span class="inst-step-label">Réseau</span>
+            </div>
+            <div class="inst-step">
+              <div class="inst-step-num">6</div>
+              <span class="inst-step-label">Résumé</span>
+            </div>
+            <div class="inst-step">
+              <div class="inst-step-num">7</div>
+              <span class="inst-step-label">Installation</span>
+            </div>
+          </div>
+          <div class="inst-side-foot">
+            <div class="inst-prog-bar"><div class="inst-prog-fill"></div></div>
+            <div class="inst-prog-label">Étape 3 sur 7</div>
+          </div>
+        </div>
+
+        <div class="installer-main">
+          <div class="inst-title">Choisir le disque</div>
+          <div class="inst-desc">Sélectionnez la partition cible pour Dimension OS.</div>
+          <div class="inst-content">
+            <div class="part-list">
+              <div class="part-item sel">
+                <div class="part-radio"></div>
+                <div class="part-info">
+                  <div class="part-name">sda2 — Linux ext4</div>
+                  <div class="part-bar"><div class="part-fill pf-nixos"></div></div>
+                  <div class="part-meta">65 % utilisé · partition existante</div>
+                </div>
+                <div class="part-size">512 Go</div>
+              </div>
+              <div class="part-item">
+                <div class="part-radio"></div>
+                <div class="part-info">
+                  <div class="part-name">sda3 — Windows NTFS</div>
+                  <div class="part-bar"><div class="part-fill pf-ntfs"></div></div>
+                  <div class="part-meta">40 % utilisé · double démarrage possible</div>
+                </div>
+                <div class="part-size">256 Go</div>
+              </div>
+              <div class="part-item">
+                <div class="part-radio"></div>
+                <div class="part-info">
+                  <div class="part-name">sda4 — Espace libre</div>
+                  <div class="part-bar"><div class="part-fill pf-free"></div></div>
+                  <div class="part-meta">Non partitionné · recommandé pour installation propre</div>
+                </div>
+                <div class="part-size">128 Go</div>
+              </div>
+            </div>
+            <div class="inst-warn">
+              <div class="inst-warn-title">⚠ sda2 sera reformaté</div>
+              <div class="inst-warn-text">Les données existantes seront effacées. Assurez-vous d'avoir une sauvegarde.</div>
+            </div>
+          </div>
+          <div class="inst-footer">
+            <span class="inst-step-label-footer">3 / 7 étapes</span>
+            <div class="inst-btns">
+              <button class="inst-btn inst-btn-back">Précédent</button>
+              <button class="inst-btn inst-btn-next">Suivant →</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /screens -->
+
+<script>
+  document.querySelectorAll('.nav-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('screen-' + tab.dataset.screen).classList.add('active');
+    });
+  });
+
+  document.querySelectorAll('.theme-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      document.documentElement.setAttribute('data-theme', btn.dataset.theme);
+    });
+  });
+</script>
+</body>
+</html>

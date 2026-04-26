@@ -31,6 +31,50 @@ l'active pas.
 
 ---
 
+## Mockups valides
+
+Le fichier `mockups/index.html` constitue la reference visuelle officielle de
+Dimension pour la phase en cours. Il est accessible directement dans un
+navigateur, sans serveur, sans dependance.
+
+### Elements valides
+
+Les cinq sections suivantes ont ete validees comme direction visuelle cible :
+
+| Section            | Contenu                                                          |
+|--------------------|------------------------------------------------------------------|
+| Bureau + Dock      | topbar, deux fenetres, widget horloge, dock 7 icones            |
+| Dimension Search   | carte flottante, 3 sections (apps/fichiers/commandes), raccourcis|
+| Panneau systeme    | slide droite, tuiles rapides, sliders, calendrier, etat Hub/Node |
+| Login              | logomark, avatar, champ mot de passe, footer position/langue     |
+| Installateur       | sidebar etapes, selecteur partition, avertissement reformatage   |
+
+La variante **Dim** et la variante **Light** sont toutes deux validees.
+Les animations CSS (entree carte, slide panneau, curseur terminal) sont
+validees comme niveau de sobriete cible : duree courte, pas de rebond.
+
+### Ce que ces mockups ne sont pas
+
+Les mockups sont une **preview statique HTML/CSS uniquement**.
+Ils servent a valider l'apparence et la direction du design.
+Ils ne constituent pas et ne remplaceront pas l'implementation reelle.
+
+Regles fermes :
+
+- **Dimension reste un OS NixOS + KDE Plasma Wayland.** Aucun de ces
+  mockups n'implique un changement de base technique.
+- **Aucun mode kiosque.** L'utilisateur conserve un acces complet a son
+  bureau, a ses applications et a ses reglages.
+- **Aucun shell web.** Les composants finaux (dock, search, panneau) seront
+  des applications natives (QML/C++ ou equivalent), pas des pages HTML
+  embarquees dans un navigateur.
+- L'implementation reelle passera par :
+  - modules NixOS (`modules/theme`, `modules/kde-config`, futurs modules)
+  - configuration KDE Plasma (colorscheme, decorations, SDDM)
+  - applications natives Dimension (Phase 2, cf. section Strategie ci-dessous)
+
+---
+
 ## Identite visuelle
 
 ### Base
