@@ -20,87 +20,77 @@ Le Hub est active explicitement pour le test local :
 Le Node pointe vers ce Hub local :
 - `http://127.0.0.1:8787`
 
-Le ping effectue par le Node cible donc :
-- `http://127.0.0.1:8787/ping`
-
-Le Hub repond actuellement :
-- statut HTTP : `200`
-- body : `ok`
+Hub et Node utilisent un token local de developpement :
+- fichier : `/etc/dimension/secrets/hub-dev-token`
+- ce fichier est cree manuellement sur la machine (voir ci-dessous)
+- ce fichier n'est jamais stocke dans Git
 
 ---
 
-## Authentification locale par token (optionnel)
+## Mise en place du token sur la machine
 
-Hub et Node supportent un token local de developpement.
-Ce token protege les endpoints `POST /nodes/ping` et `GET /nodes` sans exposer
-de secret dans Git.
+Le repertoire `/etc/dimension/secrets` est cree automatiquement par NixOS
+via `systemd-tmpfiles` avec les permissions suivantes :
+- mode : `0750`
+- proprietaire : `root:dimension-secrets`
+- groupe `dimension-secrets` : membres `dimension-hub` et `dimension-node`
 
-### Configurer le token cote Hub
-
-```nix
-dimension.hub.devTokenFile = "/etc/dimension/hub/dev-token";
-```
-
-Generer le token (hors Git, une seule fois) :
+Le fichier token doit etre cree manuellement apres le premier `nixos-rebuild` :
 
 ```sh
-openssl rand -hex 32 > /etc/dimension/hub/dev-token
-chmod 640 /etc/dimension/hub/dev-token
-chown dimension-hub:dimension-hub /etc/dimension/hub/dev-token
+# creer le fichier vide avec les bonnes permissions
+sudo install -m 640 -o root -g dimension-secrets \
+  /dev/null /etc/dimension/secrets/hub-dev-token
+
+# y ecrire un token aleatoire
+openssl rand -hex 32 | sudo tee /etc/dimension/secrets/hub-dev-token > /dev/null
 ```
 
-### Configurer le token cote Node
+Ce fichier ne doit jamais etre versionne. Il n'apparait pas dans ce depot.
 
-```nix
-dimension.node.hubTokenFile = "/etc/dimension/hub/dev-token";
-```
-
-Le meme fichier peut etre partage entre Hub et Node sur la meme machine.
-Le Node lit le fichier au demarrage et envoie le token dans le header
-`Authorization: Bearer <token>` a chaque `POST /nodes/ping`.
-
-La permission minimale pour que le Node puisse lire le fichier :
+Apres creation du fichier, redemarrer les deux services :
 
 ```sh
-chmod 640 /etc/dimension/hub/dev-token
-chown dimension-hub:dimension-hub /etc/dimension/hub/dev-token
-# ajouter dimension-node au groupe dimension-hub si necessaire
-usermod -aG dimension-hub dimension-node
+sudo systemctl restart dimension-hub dimension-node
 ```
 
-Ou creer un fichier dedie lisible par dimension-node :
+---
 
-```sh
-install -m 640 -o dimension-node -g dimension-node \
-  /etc/dimension/hub/dev-token \
-  /etc/dimension/node/hub-token
-```
+## Pourquoi un groupe partage
 
-```nix
-dimension.node.hubTokenFile = "/etc/dimension/node/hub-token";
-```
+`dimension-hub` et `dimension-node` sont deux utilisateurs systeme distincts.
+Pour qu'ils puissent tous les deux lire le meme fichier token sans duplication
+et sans elargir les permissions :
 
-### Sans token (mode developpement local non authentifie)
+- un groupe `dimension-secrets` est cree dans `hosts/main/configuration.nix`
+- `dimension-hub` et `dimension-node` sont membres de ce groupe
+- le repertoire est `0750 root:dimension-secrets`
+- le fichier token est `0640 root:dimension-secrets`
 
-Laisser `devTokenFile` et `hubTokenFile` vides.
-Le Hub loggue un warning au demarrage et accepte toutes les requetes.
-Ce mode ne doit etre utilise que si le Hub reste bind sur `127.0.0.1`.
+Chaque service peut lire le fichier. Aucun ne peut l'ecrire. Root seul peut
+modifier le secret.
 
 ---
 
 ## Commandes utiles
 
-Tester directement le Hub (endpoint public) :
+Tester directement le Hub (endpoint public, sans token) :
 
 ```sh
 curl http://127.0.0.1:8787/ping
 ```
 
-Tester avec token :
+Tester avec le token (endpoints proteges) :
 
 ```sh
-TOKEN="$(cat /etc/dimension/hub/dev-token)"
+TOKEN="$(sudo cat /etc/dimension/secrets/hub-dev-token)"
 curl --header "Authorization: Bearer $TOKEN" http://127.0.0.1:8787/nodes
+```
+
+Verifier que le repertoire secrets existe :
+
+```sh
+ls -la /etc/dimension/secrets/
 ```
 
 Lire les logs systemd du Hub :
@@ -149,7 +139,7 @@ Il valide que :
 - le Hub peut repondre a `/ping`
 - le Node peut poster son identite au Hub via `POST /nodes/ping`
 - le Hub peut retourner la liste des nodes via `GET /nodes`
-- Hub et Node peuvent s'authentifier mutuellement par token local si configure
+- Hub et Node s'authentifient mutuellement par token local
 - les deux services journalisent leur activite
 
 Toute exposition reseau devra faire l'objet d'une phase explicite.
