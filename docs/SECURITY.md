@@ -103,6 +103,44 @@ Avant de binder un service sur le LAN ou WireGuard :
 
 ---
 
+## Durcissement systemd actuel
+
+Les services Dimension existants utilisent un durcissement systemd minimal :
+- `NoNewPrivileges=true`
+- `PrivateTmp=true`
+- `ProtectSystem=strict`
+- `ProtectHome=true`
+- `LockPersonality=true`
+- `MemoryDenyWriteExecute=true`
+- `SystemCallArchitectures=native`
+
+Les services qui ont besoin du reseau local limitent les familles d'adresses a :
+- `AF_UNIX`
+- `AF_INET`
+- `AF_INET6`
+
+Cela concerne actuellement :
+- `dimension-node`
+- `dimension-hub`
+
+Les placeholders sans besoin reseau limitent les familles d'adresses a :
+- `AF_UNIX`
+
+Cela concerne actuellement :
+- `dimension-network`
+- `dimension-remote`
+- `dimension-storage`
+
+Chemins explicitement autorises en ecriture :
+- `dimension-node` : `/var/lib/dimension/node`, `/var/log/dimension`
+- `dimension-hub` : `/var/lib/dimension-hub`, `/var/log/dimension-hub`, `/etc/dimension/hub`
+
+Les services tournent encore en `root` pour la V1 de developpement.
+Ce choix reste temporaire et devra etre re-evalue avant exposition LAN ou
+WireGuard.
+
+---
+
 ## Risques futurs
 
 ### Hub compromis

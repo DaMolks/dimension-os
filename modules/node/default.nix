@@ -86,6 +86,22 @@ in
         RestartSec = "5s";
         StandardOutput = "journal";
         StandardError = "journal";
+        NoNewPrivileges = true;
+        PrivateTmp = true;
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        ReadWritePaths = [
+          "/var/lib/dimension/node"
+          "/var/log/dimension"
+        ];
+        RestrictAddressFamilies = [
+          "AF_UNIX"
+          "AF_INET"
+          "AF_INET6"
+        ];
+        LockPersonality = true;
+        MemoryDenyWriteExecute = true;
+        SystemCallArchitectures = "native";
       };
     };
   };

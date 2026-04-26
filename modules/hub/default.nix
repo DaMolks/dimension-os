@@ -110,6 +110,23 @@ in
         RestartSec = "5s";
         StandardOutput = "journal";
         StandardError = "journal";
+        NoNewPrivileges = true;
+        PrivateTmp = true;
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        ReadWritePaths = [
+          "/var/lib/dimension-hub"
+          "/var/log/dimension-hub"
+          "/etc/dimension/hub"
+        ];
+        RestrictAddressFamilies = [
+          "AF_UNIX"
+          "AF_INET"
+          "AF_INET6"
+        ];
+        LockPersonality = true;
+        MemoryDenyWriteExecute = true;
+        SystemCallArchitectures = "native";
       };
     };
   };
