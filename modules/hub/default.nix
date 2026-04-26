@@ -10,6 +10,7 @@ import json
 import os
 import socket
 import sys
+import threading
 import uuid
 
 state_dir = Path(os.environ.get("DIMENSION_HUB_STATE_DIR", "/var/lib/dimension-hub"))
@@ -19,7 +20,9 @@ host = os.environ.get("DIMENSION_HUB_HOST", ${builtins.toJSON cfg.host})
 port = int(os.environ.get("DIMENSION_HUB_PORT", ${toString cfg.port}))
 id_file = state_dir / "id"
 identity_file = state_dir / "identity.json"
+nodes_file = state_dir / "nodes.json"
 log_file = log_dir / "hub.log"
+nodes_lock = threading.Lock()
 
 state_dir.mkdir(parents=True, exist_ok=True)
 log_dir.mkdir(parents=True, exist_ok=True)
@@ -56,6 +59,29 @@ if not identity_file.exists() or not identity_file.read_text(encoding="utf-8").s
 else:
     log("hub identity exists")
 
+if not nodes_file.exists() or not nodes_file.read_text(encoding="utf-8").strip():
+    nodes_file.write_text("[]\n", encoding="utf-8")
+    nodes_file.chmod(0o644)
+    log("created nodes registry")
+else:
+    log("nodes registry exists")
+
+def current_timestamp():
+    return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+
+def log_value(value):
+    return str(value).replace("\n", " ").replace("\r", " ")[:128]
+
+def read_nodes():
+    data = json.loads(nodes_file.read_text(encoding="utf-8"))
+    if not isinstance(data, list):
+        return []
+    return [node for node in data if isinstance(node, dict)]
+
+def write_nodes(nodes):
+    nodes_file.write_text(json.dumps(nodes, indent=2) + "\n", encoding="utf-8")
+    nodes_file.chmod(0o644)
+
 class Handler(BaseHTTPRequestHandler):
     def send_text(self, status, body):
         data = body.encode("utf-8")
@@ -65,10 +91,25 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def send_json(self, status, body):
+        data = (json.dumps(body, indent=2) + "\n").encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_GET(self):
         if self.path == "/ping":
             self.send_text(200, "ok\n")
             log(f"GET /ping 200 from {self.client_address[0]}")
+            return
+
+        if self.path == "/nodes":
+            with nodes_lock:
+                nodes = read_nodes()
+            self.send_json(200, nodes)
+            log("GET /nodes 200")
             return
 
         self.send_response(404)
@@ -92,14 +133,45 @@ class Handler(BaseHTTPRequestHandler):
             log("POST /nodes/ping 400 invalid json")
             return
 
+        if not isinstance(payload, dict):
+            self.send_text(400, "invalid json\n")
+            log("POST /nodes/ping 400 invalid payload")
+            return
+
         node_id = payload.get("node_id")
-        hostname = payload.get("hostname")
+        if not isinstance(node_id, str) or not node_id.strip():
+            self.send_text(400, "missing node_id\n")
+            log("POST /nodes/ping 400 missing node_id")
+            return
 
-        if node_id and hostname:
-            log(f"node ping received: node_id={node_id} hostname={hostname}")
-        else:
-            log("node ping received")
+        node_id = node_id.strip()
+        hostname = payload.get("hostname", "")
+        if not isinstance(hostname, str):
+            hostname = ""
+        hostname = hostname.strip()
+        last_seen = current_timestamp()
 
+        with nodes_lock:
+            nodes = read_nodes()
+            updated = False
+
+            for node in nodes:
+                if node.get("node_id") == node_id:
+                    node["hostname"] = hostname
+                    node["last_seen"] = last_seen
+                    updated = True
+                    break
+
+            if not updated:
+                nodes.append({
+                    "node_id": node_id,
+                    "hostname": hostname,
+                    "last_seen": last_seen,
+                })
+
+            write_nodes(nodes)
+
+        log(f"node ping stored: node_id={log_value(node_id)} hostname={log_value(hostname)}")
         self.send_text(200, "ok\n")
 
     def log_message(self, format, *args):
