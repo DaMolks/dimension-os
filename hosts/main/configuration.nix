@@ -15,6 +15,14 @@
 
   dimension.edition = lib.mkDefault "server-headless";
 
+  dimension.hub = {
+    enable = true;
+    host = "127.0.0.1";
+    port = 8787;
+  };
+
+  dimension.node.hubUrl = "http://127.0.0.1:8787";
+
   networking.hostName = "dimension-main";
 
   boot.loader.grub = {

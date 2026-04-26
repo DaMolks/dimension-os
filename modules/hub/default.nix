@@ -2,46 +2,92 @@
 
 let
   cfg = config.dimension.hub;
+  hubServer = pkgs.writeText "dimension-hub-server.py" ''
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from datetime import datetime, timezone
+import os
+import sys
+import uuid
+
+state_dir = Path(os.environ.get("DIMENSION_HUB_STATE_DIR", "/var/lib/dimension-hub"))
+log_dir = Path(os.environ.get("DIMENSION_HUB_LOG_DIR", "/var/log/dimension-hub"))
+config_dir = Path(os.environ.get("DIMENSION_HUB_CONFIG_DIR", "/etc/dimension/hub"))
+host = os.environ.get("DIMENSION_HUB_HOST", ${builtins.toJSON cfg.host})
+port = int(os.environ.get("DIMENSION_HUB_PORT", ${toString cfg.port}))
+id_file = state_dir / "id"
+log_file = log_dir / "hub.log"
+
+state_dir.mkdir(parents=True, exist_ok=True)
+log_dir.mkdir(parents=True, exist_ok=True)
+config_dir.mkdir(parents=True, exist_ok=True)
+
+def log(message):
+    timestamp = datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+    line = f"{timestamp} dimension-hub: {message}"
+    with log_file.open("a", encoding="utf-8") as handle:
+        handle.write(line + "\n")
+    print(line, flush=True)
+
+log("starting")
+
+if not id_file.exists() or not id_file.read_text(encoding="utf-8").strip():
+    id_file.write_text(str(uuid.uuid4()) + "\n", encoding="utf-8")
+    id_file.chmod(0o644)
+    log("created hub id")
+else:
+    log("hub id exists")
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == "/ping":
+            body = b"ok\n"
+            self.send_response(200)
+            self.send_header("Content-Type", "text/plain; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+            log(f"GET /ping 200 from {self.client_address[0]}")
+            return
+
+        self.send_response(404)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+        log(f"GET {self.path} 404 from {self.client_address[0]}")
+
+    def log_message(self, format, *args):
+        return
+
+server = ThreadingHTTPServer((host, port), Handler)
+log(f"listening on {host}:{port}")
+
+try:
+    server.serve_forever()
+except KeyboardInterrupt:
+    log("stopping")
+    server.server_close()
+    sys.exit(0)
+  '';
   hubScript = pkgs.writeShellScript "dimension-hub-agent" ''
-    set -eu
-
-    state_dir="''${DIMENSION_HUB_STATE_DIR:-/var/lib/dimension-hub}"
-    log_dir="''${DIMENSION_HUB_LOG_DIR:-/var/log/dimension-hub}"
-    config_dir="''${DIMENSION_HUB_CONFIG_DIR:-/etc/dimension/hub}"
-    id_file="$state_dir/id"
-    log_file="$log_dir/hub.log"
-
-    mkdir -p "$state_dir" "$log_dir" "$config_dir"
-
-    log() {
-      timestamp="$(${pkgs.coreutils}/bin/date -Is)"
-      ${pkgs.coreutils}/bin/printf '%s dimension-hub: %s\n' "$timestamp" "$*" | ${pkgs.coreutils}/bin/tee -a "$log_file"
-    }
-
-    log "starting"
-
-    if [ ! -s "$id_file" ]; then
-      if [ -r /proc/sys/kernel/random/uuid ]; then
-        read -r hub_id < /proc/sys/kernel/random/uuid
-      else
-        hub_id="dimension-hub-$(${pkgs.coreutils}/bin/date +%s)"
-      fi
-
-      ${pkgs.coreutils}/bin/printf '%s\n' "$hub_id" > "$id_file"
-      ${pkgs.coreutils}/bin/chmod 0644 "$id_file"
-      log "created hub id"
-    else
-      log "hub id exists"
-    fi
-
-    while true; do
-      log "timestamp"
-      ${pkgs.coreutils}/bin/sleep 60
-    done
+    exec ${pkgs.python3}/bin/python3 ${hubServer}
   '';
 in
 {
-  options.dimension.hub.enable = lib.mkEnableOption "Dimension central hub foundation";
+  options.dimension.hub = {
+    enable = lib.mkEnableOption "Dimension central hub foundation";
+
+    host = lib.mkOption {
+      type = lib.types.str;
+      default = "127.0.0.1";
+      description = "Host address used by the minimal Dimension Hub HTTP server.";
+    };
+
+    port = lib.mkOption {
+      type = lib.types.port;
+      default = 8787;
+      description = "Port used by the minimal Dimension Hub HTTP server.";
+    };
+  };
 
   config = lib.mkIf cfg.enable {
     systemd.tmpfiles.rules = [
