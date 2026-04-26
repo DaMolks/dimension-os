@@ -57,14 +57,17 @@ else:
     log("hub identity exists")
 
 class Handler(BaseHTTPRequestHandler):
+    def send_text(self, status, body):
+        data = body.encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_GET(self):
         if self.path == "/ping":
-            body = b"ok\n"
-            self.send_response(200)
-            self.send_header("Content-Type", "text/plain; charset=utf-8")
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
+            self.send_text(200, "ok\n")
             log(f"GET /ping 200 from {self.client_address[0]}")
             return
 
@@ -72,6 +75,32 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", "0")
         self.end_headers()
         log(f"GET {self.path} 404 from {self.client_address[0]}")
+
+    def do_POST(self):
+        if self.path != "/nodes/ping":
+            self.send_response(404)
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            log(f"POST {self.path} 404 from {self.client_address[0]}")
+            return
+
+        length = int(self.headers.get("Content-Length", "0"))
+        try:
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        except json.JSONDecodeError:
+            self.send_text(400, "invalid json\n")
+            log("POST /nodes/ping 400 invalid json")
+            return
+
+        node_id = payload.get("node_id")
+        hostname = payload.get("hostname")
+
+        if node_id and hostname:
+            log(f"node ping received: node_id={node_id} hostname={hostname}")
+        else:
+            log("node ping received")
+
+        self.send_text(200, "ok\n")
 
     def log_message(self, format, *args):
         return

@@ -70,10 +70,10 @@ EOF
       log "timestamp"
 
       if [ -n "$hub_url" ]; then
-        if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 "$hub_url/ping" 2>&1 >/dev/null)"; then
-          log "hub ping succeeded"
+        if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' --data-binary "@$identity_file" "$hub_url/nodes/ping" 2>&1 >/dev/null)"; then
+          log "hub node ping succeeded"
         else
-          log "hub ping failed: $curl_error"
+          log "hub node ping failed: $curl_error"
         fi
       fi
 
