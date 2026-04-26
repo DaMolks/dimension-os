@@ -67,10 +67,18 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    users.groups.dimension-node = {};
+
+    users.users.dimension-node = {
+      isSystemUser = true;
+      group = "dimension-node";
+      description = "Dimension Node service user";
+    };
+
     systemd.tmpfiles.rules = [
-      "d /var/lib/dimension/node 0755 root root -"
-      "d /var/log/dimension 0755 root root -"
-      "L+ /var/lib/dimension/node/agent.sh - - - - ${agentScript}"
+      "d /var/lib/dimension/node 0750 dimension-node dimension-node -"
+      "d /var/log/dimension 0750 dimension-node dimension-node -"
+      "L+ /var/lib/dimension/node/agent.sh - dimension-node dimension-node - ${agentScript}"
     ];
 
     systemd.services.dimension-node = {
@@ -80,7 +88,8 @@ in
 
       serviceConfig = {
         Type = "simple";
-        User = "root";
+        User = "dimension-node";
+        Group = "dimension-node";
         ExecStart = "/var/lib/dimension/node/agent.sh";
         Restart = "always";
         RestartSec = "5s";

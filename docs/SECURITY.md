@@ -131,13 +131,17 @@ Cela concerne actuellement :
 - `dimension-remote`
 - `dimension-storage`
 
+Utilisateurs systeme dedies :
+- `dimension-node` tourne avec `User=dimension-node` et `Group=dimension-node`
+- `dimension-hub` tourne avec `User=dimension-hub` et `Group=dimension-hub`
+
 Chemins explicitement autorises en ecriture :
 - `dimension-node` : `/var/lib/dimension/node`, `/var/log/dimension`
 - `dimension-hub` : `/var/lib/dimension-hub`, `/var/log/dimension-hub`, `/etc/dimension/hub`
 
-Les services tournent encore en `root` pour la V1 de developpement.
-Ce choix reste temporaire et devra etre re-evalue avant exposition LAN ou
-WireGuard.
+Les placeholders restent sans utilisateur dedie pour l'instant car ils ne font
+qu'executer un `oneshot` sans logique reelle. Cette decision devra etre revue
+quand ils deviendront des services persistants.
 
 ---
 

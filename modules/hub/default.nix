@@ -90,11 +90,19 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    users.groups.dimension-hub = {};
+
+    users.users.dimension-hub = {
+      isSystemUser = true;
+      group = "dimension-hub";
+      description = "Dimension Hub service user";
+    };
+
     systemd.tmpfiles.rules = [
-      "d /var/lib/dimension-hub 0755 root root -"
-      "d /var/log/dimension-hub 0755 root root -"
-      "d /etc/dimension/hub 0755 root root -"
-      "L+ /var/lib/dimension-hub/hub.sh - - - - ${hubScript}"
+      "d /var/lib/dimension-hub 0750 dimension-hub dimension-hub -"
+      "d /var/log/dimension-hub 0750 dimension-hub dimension-hub -"
+      "d /etc/dimension/hub 0750 dimension-hub dimension-hub -"
+      "L+ /var/lib/dimension-hub/hub.sh - dimension-hub dimension-hub - ${hubScript}"
     ];
 
     systemd.services.dimension-hub = {
@@ -104,7 +112,8 @@ in
 
       serviceConfig = {
         Type = "simple";
-        User = "root";
+        User = "dimension-hub";
+        Group = "dimension-hub";
         ExecStart = "/var/lib/dimension-hub/hub.sh";
         Restart = "always";
         RestartSec = "5s";
