@@ -9,6 +9,7 @@ let
     log_dir="''${DIMENSION_NODE_LOG_DIR:-/var/log/dimension}"
     hub_url=${lib.escapeShellArg cfg.hubUrl}
     id_file="$state_dir/id"
+    identity_file="$state_dir/identity.json"
     log_file="$log_dir/node.log"
 
     mkdir -p "$state_dir" "$log_dir"
@@ -38,6 +39,31 @@ let
       log "created node id"
     else
       log "node id exists"
+    fi
+
+    read -r node_id < "$id_file"
+
+    if [ ! -s "$identity_file" ]; then
+      if [ -r /proc/sys/kernel/hostname ]; then
+        read -r hostname < /proc/sys/kernel/hostname
+      else
+        hostname="unknown"
+      fi
+
+      created_at="$(${pkgs.coreutils}/bin/date -Is)"
+
+      ${pkgs.coreutils}/bin/cat > "$identity_file" <<EOF
+{
+  "node_id": "$node_id",
+  "hostname": "$hostname",
+  "created_at": "$created_at",
+  "version": 1
+}
+EOF
+      ${pkgs.coreutils}/bin/chmod 0644 "$identity_file"
+      log "created node identity"
+    else
+      log "node identity exists"
     fi
 
     while true; do
