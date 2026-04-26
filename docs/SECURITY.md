@@ -224,14 +224,104 @@ Mesures a prevoir :
 
 ---
 
+---
+
+## Revue securite - Hub local avec token
+
+Cette section documente les points valides et les limites restantes apres la
+mise en place du token local de developpement Hub/Node.
+
+### Points valides
+
+**Hub bind sur 127.0.0.1**
+Le Hub ecoute uniquement sur `127.0.0.1` (defaut dans `modules/hub/default.nix`
+et confirme dans `hosts/main/configuration.nix`). Aucun port n'est ouvert dans
+le firewall. Aucune interface reseau externe n'est atteinte.
+
+**Token non versionne**
+Le token n'est pas stocke dans Git. Seul le chemin du fichier est configure
+dans `hosts/main/configuration.nix`. Le contenu du fichier est cree
+manuellement sur la machine apres le premier `nixos-rebuild`.
+
+**Emplacement et permissions du fichier token**
+- Repertoire : `/etc/dimension/secrets`
+- Mode repertoire : `0750 root:dimension-secrets`
+- Mode fichier attendu : `0640 root:dimension-secrets`
+- Le groupe `dimension-secrets` est declare dans NixOS et ses membres sont
+  uniquement `dimension-hub` et `dimension-node`.
+- Root seul peut modifier le fichier.
+
+**Utilisateurs systeme dedies**
+- `dimension-hub` tourne avec `User=dimension-hub`, `Group=dimension-hub`
+- `dimension-node` tourne avec `User=dimension-node`, `Group=dimension-node`
+- Durcissement systemd applique sur les deux services :
+  `NoNewPrivileges`, `PrivateTmp`, `ProtectSystem=strict`, `ProtectHome`,
+  `LockPersonality`, `MemoryDenyWriteExecute`, `SystemCallArchitectures=native`
+
+**Aucun LAN expose**
+Aucune regle firewall n'est ajoutee. Aucun bind autre que `127.0.0.1` n'est
+configure. Les familles d'adresses des services sont limitees a
+`AF_UNIX`, `AF_INET`, `AF_INET6` (necessaire pour loopback uniquement).
+
+**GET /ping reste public mais local**
+L'endpoint `/ping` ne necessite pas de token. Il reste accessible uniquement
+via `127.0.0.1`. Il ne divulgue aucune information sensible.
+
+**POST /nodes/ping et GET /nodes proteges par token**
+Quand `devTokenFile` est configure et que le fichier existe et est non vide,
+le Hub exige le header `Authorization: Bearer <token>` sur ces deux endpoints.
+Le Hub retourne `401` si le token est absent ou incorrect.
+Le token n'est jamais loggue.
+
+**Node envoie le token sans le logguer**
+Quand `hubTokenFile` est configure, le Node lit le token au demarrage et
+l'inclut dans le header `Authorization: Bearer` de chaque `POST /nodes/ping`.
+Le token n'apparait pas dans les logs.
+
+---
+
+### Limites restantes
+
+**Token de developpement partage**
+Le token est un secret partage simple transmis en clair sur HTTP loopback.
+Il n'offre pas d'authentification forte. Un processus local sur la meme
+machine peut l'intercepter ou le lire s'il a acces au fichier ou au socket.
+Ce mecanisme est suffisant pour un loopback local isole, pas pour un reseau.
+
+**Pas encore de pairing**
+N'importe quel client connaissant le token peut s'enregistrer comme node.
+Il n'y a pas de validation d'identite cryptographique du node.
+Toute machine ayant acces au loopback et au token peut injecter de faux nodes.
+
+**Pas encore d'identite cryptographique**
+Le `node_id` est un UUID genere localement, sans signature ni certificat.
+Il n'y a aucun moyen de verifier qu'un node_id correspond bien a la machine
+qui l'annonce.
+
+**Pas encore de WireGuard**
+Aucun VPN n'est configure. Le reseau Dimension est limite au loopback local.
+Toute extension multi-machine necessitera WireGuard avant toute autre etape.
+
+**Pas pret pour exposition LAN**
+Avant de binder le Hub sur une interface LAN, la checklist complete de
+`SECURITY.md` (section "Checklist avant exposition reseau") doit etre validee
+dans son integralite. Le token de developpement local ne suffit pas.
+
+---
+
 ## Etat actuel
 
-Actuellement :
-- le Hub de test local ecoute sur `127.0.0.1`
-- le Node peut ping le Hub local si `dimension.node.hubUrl` est defini
-- aucune exposition LAN n'est configuree
-- aucune API complete n'est disponible
-- aucune authentification n'est implementee
-- aucun WireGuard n'est configure
+- Hub ecoute sur `127.0.0.1:8787`
+- Node poste son identite au Hub via `POST /nodes/ping` toutes les 60 secondes
+- Hub maintient un registre local `nodes.json`
+- Token local de developpement configure sur l'hote `main` :
+  - chemin : `/etc/dimension/secrets/hub-dev-token`
+  - permissions prevues : `0640 root:dimension-secrets`
+  - fichier cree manuellement sur la machine, jamais dans Git
+- Endpoints proteges : `POST /nodes/ping`, `GET /nodes`
+- Endpoint public : `GET /ping`
+- Aucune exposition LAN configuree
+- Aucun WireGuard configure
+- Aucun pairing implemente
 
 Toute ouverture reseau doit etre traitee comme une phase explicite.
