@@ -25,10 +25,18 @@ let
     "Dimension Paramètres"
     "Configuration système — à venir.";
 
+  dimensionIcons = pkgs.runCommand "dimension-icons" {} ''
+    install -Dm0644 ${../../assets/icons/256/dimension-search.png} \
+      $out/share/icons/hicolor/256x256/apps/dimension-search.png
+    install -Dm0644 ${../../assets/icons/256/dimension-hub.png} \
+      $out/share/icons/hicolor/256x256/apps/dimension-hub.png
+    install -Dm0644 ${../../assets/icons/256/dimension-settings.png} \
+      $out/share/icons/hicolor/256x256/apps/dimension-settings.png
+  '';
+
   # .desktop installé dans share/applications/ via writeTextDir.
   # KDE le découvre automatiquement depuis XDG_DATA_DIRS.
-  # Icon= référence un thème futur ; KDE affiche l'icône système par défaut
-  # si le thème n'est pas encore présent.
+  # Icon= référence les icônes installées dans hicolor par dimensionIcons.
   mkDesktop = { name, desktopName, comment, bin, icon, categories, keywords }:
     pkgs.writeTextDir "share/applications/${name}.desktop" ''
       [Desktop Entry]
@@ -54,6 +62,7 @@ in
       dimensionSearch
       dimensionHub
       dimensionSettings
+      dimensionIcons
 
       (mkDesktop {
         name       = "dimension-search";

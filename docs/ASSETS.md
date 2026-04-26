@@ -287,10 +287,14 @@ une fois ce paquet installe.
 | Asset                  | Statut      | Fichier(s)                  |
 |------------------------|-------------|------------------------------|
 | Logo Dimension         | a faire     | -                            |
-| Icones apps Dimension  | a faire     | -                            |
+| Icones apps Dimension V1 | integrees provisoires | `assets/icons/256/dimension-search.png`, `assets/icons/256/dimension-hub.png`, `assets/icons/256/dimension-settings.png` |
 | Fond d'ecran Light     | a faire     | -                            |
 | Fond d'ecran Dim       | a faire     | -                            |
 | Theme SDDM             | a faire     | -                            |
 | Icones systeme         | a faire     | -                            |
+
+Note : les icones apps Dimension V1 sont validees pour l'integration actuelle
+meme si la transparence n'est pas parfaite. Elles sont installees via le
+fallback `hicolor` pour les entrees `.desktop` existantes.
 
 Ce tableau est mis a jour a chaque livraison d'asset.
