@@ -1,0 +1,8 @@
+# secrets
+/etc/dimension/secrets/
+
+# local assets non suivis
+assets/*.png
+
+# nix build
+result
