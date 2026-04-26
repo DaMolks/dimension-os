@@ -22,6 +22,12 @@
             ./hosts/main/configuration.nix
           ];
         };
+        "desktop-test" = {
+          system = "x86_64-linux";
+          modules = [
+            ./hosts/desktop-test/configuration.nix
+          ];
+        };
       };
     in
     {
