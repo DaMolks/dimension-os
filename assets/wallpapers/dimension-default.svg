@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#07111f"/>
+      <stop offset="55%" stop-color="#0d1f36"/>
+      <stop offset="100%" stop-color="#15375e"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0078d7" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#54b8ff" stop-opacity="0.65"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#2ca7ff" stop-opacity="0.35"/>
+      <stop offset="100%" stop-color="#2ca7ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1920" height="1080" fill="url(#bg)"/>
+  <circle cx="1500" cy="220" r="320" fill="url(#halo)"/>
+  <circle cx="320" cy="820" r="260" fill="url(#halo)"/>
+
+  <g opacity="0.22" stroke="#7dc8ff" stroke-width="2" fill="none">
+    <path d="M0 830 C280 730 500 760 760 690 S1260 510 1920 590"/>
+    <path d="M0 880 C280 780 520 820 780 760 S1320 600 1920 660"/>
+    <path d="M0 930 C280 850 560 900 860 840 S1400 690 1920 750"/>
+  </g>
+
+  <g transform="translate(960 540)">
+    <polygon
+      points="0,-250 216,-125 216,125 0,250 -216,125 -216,-125"
+      fill="none"
+      stroke="url(#glow)"
+      stroke-width="18"
+    />
+    <polygon
+      points="0,-170 147,-85 147,85 0,170 -147,85 -147,-85"
+      fill="#081526"
+      fill-opacity="0.55"
+      stroke="#84d1ff"
+      stroke-opacity="0.7"
+      stroke-width="6"
+    />
+    <circle r="54" fill="#eef7ff" fill-opacity="0.94"/>
+    <circle r="30" fill="#0078d7"/>
+  </g>
+</svg>

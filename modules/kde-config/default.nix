@@ -22,6 +22,9 @@ in
         [Icons]
         Theme=Papirus-Dark
 
+        [General]
+        ColorScheme=Dimension
+
         [KDE]
         LookAndFeelPackage=org.kde.breezedark.desktop
         SingleClick=false
@@ -92,6 +95,19 @@ in
         location=4
         plugin=org.kde.plasma.private.systemtray
         wallpaperplugin=org.kde.image
+
+        [Containments][7]
+        activityId=
+        formfactor=0
+        immutability=1
+        lastScreen=0
+        location=0
+        plugin=org.kde.desktopcontainment
+        wallpaperplugin=org.kde.image
+
+        [Containments][7][Wallpaper][org.kde.image][General]
+        FillMode=2
+        Image=${../../assets/wallpapers/dimension-default.svg}
       '';
     };
   };
