@@ -36,6 +36,15 @@ in
         cursorTheme=layan-cursors
         cursorSize=24
       '';
+
+      "xdg/baloofilerc".text = ''
+        [Basic Settings]
+        Indexing-Enabled=true
+
+        [General]
+        folders[$e]=$HOME,/mnt/dimension
+        exclude folders[$e]=/proc,/sys,/dev,/nix,/run,/boot,/tmp
+      '';
     };
   };
 }

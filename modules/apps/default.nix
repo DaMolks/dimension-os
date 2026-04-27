@@ -13,9 +13,9 @@ let
         ${lib.escapeShellArg body}
     '';
 
-  dimensionSearch = mkPlaceholder "dimension-search"
-    "Dimension Search"
-    "Fonctionnalité à venir.";
+  dimensionSearch = pkgs.writeShellScriptBin "dimension-search" ''
+    exec ${pkgs.kdePackages.krunner}/bin/krunner
+  '';
 
   dimensionHub = mkPlaceholder "dimension-hub"
     "Dimension Hub"
