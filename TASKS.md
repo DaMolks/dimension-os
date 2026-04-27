@@ -1,145 +1,94 @@
 # Dimension - Tasks
 
-## Terminé
+## Completed
 
-### Base
+### Core structure
 
-- [x] créer `flake.nix`
-- [x] créer l’hôte générique `main`
-- [x] créer le module `base`
-- [x] configurer locale, utilisateur, Nix, firewall et outils de base
-- [x] rendre `nix flake check` valide
+- [x] Create `flake.nix`
+- [x] Create generic hosts
+- [x] Create `base`, `desktop`, `profiles`, `hub`, `node`, `network`, `remote`, `storage`, `theme`, `apps`, and `kde-config` modules
+- [x] Keep `nix flake check --no-build` passing
 
-### Desktop
+### Desktop and UX baseline
 
-- [x] créer le module `desktop`
-- [x] ajouter `dimension.desktop.enable`
-- [x] configurer KDE Plasma Wayland
-- [x] configurer SDDM
-- [x] configurer NetworkManager
-- [x] configurer PipeWire
-- [x] configurer Bluetooth
-- [x] ajouter les paquets graphiques de base
+- [x] Enable KDE Plasma 6 and SDDM
+- [x] Add Dimension desktop entries
+- [x] Wire Dimension Search to KRunner
+- [x] Add a default Plasma panel with pinned Dimension entries
+- [x] Add a first Dimension visual identity: wallpaper, color scheme, SDDM theme
+- [x] Extend Baloo indexing to `/mnt/dimension`
 
-### Éditions
+### Runtime baseline
 
-- [x] créer le module `profiles`
-- [x] ajouter `dimension.edition`
-- [x] définir les éditions Dimension
-- [x] activer le desktop selon l’édition
-- [x] activer les fondations par édition
-- [x] documenter les éditions dans `docs/EDITIONS.md`
-- [x] aligner `SPEC.md` avec les éditions
-
-### Installateur
-
-- [x] cadrer le parcours d’installation
-- [x] documenter l’ISO unique
-- [x] documenter le choix d’édition
-- [x] documenter standalone / Hub détecté
-- [x] documenter l’onboarding post-installation
-
-### Fondations stubs
-
-- [x] créer le module `network`
-- [x] créer le module `node`
-- [x] créer le module `remote`
-- [x] créer le module `hub`
-- [x] créer le module `storage`
-- [x] exporter les modules dans `flake.nix`
-- [x] importer les modules dans `hosts/main/configuration.nix`
-- [x] garder les services en placeholders sans logique réelle
+- [x] Add a minimal local Hub HTTP service
+- [x] Add a minimal local Node service
+- [x] Add token-based local Hub/Node protection
+- [x] Add opt-in Sunshine and Wake-on-LAN support
+- [x] Add opt-in Samba, wsdd, and SFTP support
+- [x] Add edition-specific defaults for gaming, workstation, print-station, and laptop
+- [x] Add `dimension-install` CLI host generator
 
 ---
 
-## Prochaine grande phase - Implémentation des premiers daemons réels
+## Current Priority
 
-### Dimension Node
+### Documentation and repo truth
 
-- [ ] définir le périmètre du premier daemon réel
-- [ ] choisir le runtime initial
-- [ ] créer un binaire ou script minimal
-- [ ] remplacer le placeholder `dimension-node`
-- [ ] écrire un état minimal dans `/var/lib/dimension`
-- [ ] journaliser proprement dans systemd
-- [ ] conserver une option de désactivation propre
+- [x] Align major docs with the actual repository state
+- [ ] Normalize encoding in remaining mojibake files
+- [ ] Review older docs for stale assumptions not yet cleaned up
 
-### Contrats internes
+### Network foundation
 
-- [ ] définir les fichiers d’état locaux
-- [ ] définir les chemins de configuration dans `/etc/dimension`
-- [ ] définir les conventions de logs
-- [ ] documenter les responsabilités de chaque daemon
+- [ ] Restore or reintroduce the WireGuard module
+- [ ] Export it through `flake.nix`
+- [ ] Decide how hosts opt into VPN identity
+- [ ] Document key management and peer lifecycle
+
+### Runtime contracts
+
+- [ ] Define the supported Hub / Node protocol surface
+- [ ] Document state files and ownership rules
+- [ ] Document service responsibilities and lifecycle
 
 ### Validation
 
-- [ ] vérifier `nix flake check`
-- [ ] vérifier activation/désactivation par module
-- [ ] tester `server-headless`
-- [ ] tester une édition avec desktop
+- [ ] Add a smoke test for `main`
+- [ ] Add a smoke test for `desktop-test`
+- [ ] Test storage opt-in paths
+- [ ] Test remote opt-in paths
 
 ---
 
-## À venir
+## Next Product Steps
 
-### Hub
+### Hub / Node
 
-- [ ] remplacer le stub `dimension-hub`
-- [ ] ajouter une API minimale
-- [ ] ajouter un registre machines
-- [ ] ajouter une base persistante
-- [ ] ajouter une auth simple
+- [ ] Improve Hub persistence beyond `nodes.json`
+- [ ] Add explicit pairing
+- [ ] Add safer LAN / VPN exposure rules
+- [ ] Add stronger identity handling
 
-### Network
+### Search / Settings
 
-- [ ] remplacer le stub `dimension-network`
-- [ ] ajouter découverte locale
-- [ ] ajouter pairing
-- [ ] ajouter WireGuard
-- [ ] intégrer le Hub
-
-### Remote
-
-- [ ] remplacer le stub `dimension-remote`
-- [ ] définir le bureau à distance natif
-- [ ] intégrer le comportement WOL via onboarding
-- [ ] définir les sessions distantes
+- [ ] Add Dimension-specific search results
+- [ ] Create a real Dimension Settings tool
+- [ ] Add widgets and system actions integration
 
 ### Storage
 
-- [ ] remplacer le stub `dimension-storage`
-- [ ] configurer SMB
-- [ ] configurer SFTP
-- [ ] configurer montage automatique
-- [ ] exposer l’espace unifié `/mnt/dimension`
+- [ ] Define auto-mount behavior
+- [ ] Define cross-machine path conventions
+- [ ] Add approval-aware storage sharing
 
-### Search / Shell / Widgets
+### Installer
 
-- [ ] configurer KRunner ou provider initial
-- [ ] créer Dimension Search
-- [ ] créer dock custom
-- [ ] créer widgets
-- [ ] créer shell complet
+- [ ] Auto-add generated hosts to `flake.nix`
+- [ ] Improve generated host templates by edition
+- [ ] Design a graphical installer flow
 
-### UI
+### Quality and security
 
-- [ ] créer app Tauri
-- [ ] intégrer React
-- [ ] créer thème Dimension
-- [ ] créer paramètres Dimension
-
-### Éditions spécialisées
-
-- [ ] définir les logiciels `gaming`
-- [ ] définir les logiciels `print-station`
-- [ ] définir les logiciels `workstation`
-- [ ] définir les réglages `laptop`
-
-### Sécurité et finalisation
-
-- [ ] gérer clés
-- [ ] sécuriser API
-- [ ] limiter accès
-- [ ] tester VM
-- [ ] tester réseau
-- [ ] tester UX
+- [ ] Review secrets handling across modules
+- [ ] Add upgrade and rollback guidance
+- [ ] Expand VM and real-machine validation

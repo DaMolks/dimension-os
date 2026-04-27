@@ -1,281 +1,243 @@
 # Dimension - Runtime
 
-Ce document fixe les conventions runtime de Dimension.
-Il sert de reference pour eviter que les modules systeme divergent dans leurs
-chemins, noms de services et responsabilites.
+This document records the runtime conventions that are true for the repository
+today.
 
-Etat actuel :
-- `dimension-node` est un agent minimal reel
-- `dimension-hub` est un agent minimal reel
-- `dimension-network`, `dimension-remote` et `dimension-storage` restent des placeholders
-- aucune API, decouverte reseau, authentification, sync ou couche VPN n'est implementee
+It is intentionally conservative: if code and docs disagree, the code wins and
+this document must be updated.
 
 ---
 
-## Chemins
+## Current Summary
 
-### /etc/dimension
+Implemented now:
+- `dimension-node` is a real minimal agent
+- `dimension-hub` is a real minimal local HTTP service
+- `dimension-storage` is a real opt-in storage module
+- `dimension-remote` is a real opt-in remote module
+- `dimension-network` is still a placeholder
 
-Racine de configuration locale Dimension.
+Not implemented in the current tree:
+- WireGuard module
+- pairing approval workflow
+- LAN-safe Hub exposure
+- automatic storage mounting between machines
 
-Existe actuellement :
-- creee par le module `network` quand `dimension.network.enable = true`
+---
 
-Usage prevu :
-- configuration commune locale
-- points d'entree pour les sous-systemes Dimension
+## Filesystem Paths
 
-Pas encore implemente :
-- schema de configuration
-- fichiers de configuration communs
-- secrets
+### `/etc/dimension`
 
-### /var/lib/dimension
+Purpose:
+- root for local Dimension configuration
 
-Racine d'etat local Dimension.
+Current state:
+- created by `dimension.network.enable`
 
-Existe actuellement :
-- utilisee comme racine logique pour les donnees locales
+Notes:
+- no shared schema yet
+- no common config file yet
 
-Usage prevu :
-- etat local persistant de la machine
-- donnees gerees par les agents Dimension
+### `/var/lib/dimension/node`
 
-Pas encore implemente :
-- schema d'etat global
-- synchronisation
-- registre local complet
+Purpose:
+- persistent local state for `dimension-node`
 
-### /var/lib/dimension/node
+Current files:
+- `agent.sh`
+- `id`
+- `identity.json`
 
-Etat persistant de `dimension-node`.
+Behavior:
+- `id` is created on first start if missing
+- `identity.json` is created on first start if missing
 
-Existe actuellement :
-- cree par le module `node`
-- contient `agent.sh`
-- contient `id`, cree au premier demarrage si absent
+### `/var/log/dimension`
 
-Usage prevu :
-- identite locale de la machine
-- etat interne de l'agent local
-- base future pour pairing, sync et relation Hub
+Purpose:
+- text logs for `dimension-node`
 
-Pas encore implemente :
-- pairing
-- connexion Hub
-- sync machines
-- protocole reseau
+Current files:
+- `node.log`
 
-### /var/log/dimension
+### `/var/lib/dimension-hub`
 
-Logs locaux des composants Dimension generaux.
+Purpose:
+- persistent local state for `dimension-hub`
 
-Existe actuellement :
-- cree par le module `node`
-- contient `node.log`
+Current files:
+- `hub.sh`
+- `id`
+- `identity.json`
+- `nodes.json`
 
-Usage prevu :
-- logs lisibles hors journald pour les agents locaux
-- complement aux logs systemd
+Behavior:
+- `id` is created on first start if missing
+- `identity.json` is created on first start if missing
+- `nodes.json` stores the Node registry
 
-Pas encore implemente :
-- rotation specifique Dimension
-- structure de logs normalisee
+### `/var/log/dimension-hub`
 
-### /var/lib/dimension-hub
+Purpose:
+- text logs for `dimension-hub`
 
-Etat persistant du Hub Dimension.
+Current files:
+- `hub.log`
 
-Existe actuellement :
-- cree par le module `hub`
-- contient `hub.sh`
-- contient `id`, cree au premier demarrage si absent
+### `/etc/dimension/hub`
 
-Usage prevu :
-- etat interne du serveur central Dimension
-- future base de registre machines
-- future base de donnees Hub
+Purpose:
+- local Hub configuration directory
 
-Pas encore implemente :
-- SQLite
-- registre machines
-- comptes
-- pairing
+Current state:
+- created when `dimension.hub.enable = true`
 
-### /var/log/dimension-hub
+### `/etc/dimension/storage`
 
-Logs du Hub Dimension.
+Purpose:
+- reserved local storage configuration root
 
-Existe actuellement :
-- cree par le module `hub`
-- contient `hub.log`
+Current state:
+- created when `dimension.storage.enable = true`
 
-Usage prevu :
-- logs lisibles du Hub
-- complement aux logs systemd
+### `/etc/dimension/remote`
 
-Pas encore implemente :
-- rotation specifique Hub
-- format structure
+Purpose:
+- reserved local remote configuration root
 
-### /etc/dimension/hub
+Current state:
+- created when `dimension.remote.enable = true`
 
-Configuration du Hub Dimension.
+### `/mnt/dimension`
 
-Existe actuellement :
-- cree par le module `hub`
+Purpose:
+- shared storage root
 
-Usage prevu :
-- configuration future du Hub
-- parametres locaux du serveur central
-
-Pas encore implemente :
-- fichier de configuration
-- auth
-- certificats
-- secrets
+Current state:
+- created by the storage module
+- exported through Samba when `dimension.storage.samba.enable = true`
 
 ---
 
 ## Services
 
-### dimension-node
+### `dimension-node`
 
-Statut : agent minimal reel
-
-Module :
+Module:
 - `modules/node/default.nix`
 
-Activation :
-- option `dimension.node.enable`
-- active par defaut via les editions Dimension
+Status:
+- real minimal service
 
-Comportement actuel :
-- service `Type=simple`
-- tourne en tant que `root`
-- demarre `/var/lib/dimension/node/agent.sh`
-- redemarre avec `Restart=always`
-- cree un ID local si absent
-- ecrit dans `/var/log/dimension/node.log`
-- log vers stdout, donc journald
-- ecrit un timestamp periodique
+Behavior:
+- runs as system user `dimension-node`
+- creates local identity if missing
+- optionally reads a bearer token from `dimension.node.hubTokenFile`
+- posts `identity.json` to `POST /nodes/ping`
+- logs to journald and `/var/log/dimension/node.log`
+- loops forever with a fixed 60 second delay
 
-Pas encore implemente :
-- API
-- WebSocket
-- connexion Hub
-- pairing
-- sync
-- WireGuard
+Current limitations:
+- no pairing
+- no WireGuard
+- no structured local state beyond identity files
+- no LAN discovery
+- no backoff
 
-### dimension-hub
+### `dimension-hub`
 
-Statut : agent minimal reel
-
-Module :
+Module:
 - `modules/hub/default.nix`
 
-Activation :
-- option `dimension.hub.enable`
-- active seulement pour l'edition `server` pour l'instant
+Status:
+- real minimal service
 
-Comportement actuel :
-- service `Type=simple`
-- tourne en tant que `root`
-- demarre `/var/lib/dimension-hub/hub.sh`
-- redemarre avec `Restart=always`
-- cree un ID Hub si absent
-- ecrit dans `/var/log/dimension-hub/hub.log`
-- log vers stdout, donc journald
-- ecrit un timestamp periodique
+Behavior:
+- runs as system user `dimension-hub`
+- binds to `127.0.0.1:8787` by default
+- serves `GET /ping`, `GET /nodes`, and `POST /nodes/ping`
+- optionally protects `GET /nodes` and `POST /nodes/ping` with a bearer token
+- persists registered nodes in `/var/lib/dimension-hub/nodes.json`
+- logs to journald and `/var/log/dimension-hub/hub.log`
 
-Pas encore implemente :
-- API HTTP
-- SQLite
-- auth
-- pairing
-- WireGuard
-- Web UI
+Current limitations:
+- JSON file persistence only
+- no SQLite
+- no paging
+- no delete endpoint
+- no pairing
+- no LAN-safe exposure
+- no TLS
 
-### dimension-network
+### `dimension-network`
 
-Statut : placeholder
-
-Module :
+Module:
 - `modules/network/default.nix`
 
-Activation :
-- option `dimension.network.enable`
-- active par defaut via les editions Dimension
+Status:
+- placeholder
 
-Comportement actuel :
-- active NetworkManager
-- cree `/etc/dimension`
-- service `oneshot`
-- execute seulement `true`
+Behavior:
+- enables NetworkManager
+- creates `/etc/dimension`
+- runs a hardened `oneshot` service that executes `true`
 
-Pas encore implemente :
-- decouverte reseau
-- mDNS
-- WireGuard
-- pairing
-- integration Hub
+Current limitations:
+- no mDNS discovery
+- no Avahi integration
+- no WireGuard
 
-### dimension-remote
+### `dimension-storage`
 
-Statut : placeholder
-
-Module :
-- `modules/remote/default.nix`
-
-Activation :
-- option `dimension.remote.enable`
-- active par defaut via les editions Dimension
-
-Comportement actuel :
-- cree `/etc/dimension/remote`
-- service `oneshot`
-- execute seulement `true`
-
-Pas encore implemente :
-- bureau a distance reel
-- Sunshine
-- Moonlight
-- session streaming
-- WOL
-- integration login manager
-
-### dimension-storage
-
-Statut : placeholder
-
-Module :
+Module:
 - `modules/storage/default.nix`
 
-Activation :
-- option `dimension.storage.enable`
-- active par defaut via les editions Dimension
+Status:
+- real opt-in module
 
-Comportement actuel :
-- cree `/etc/dimension/storage`
-- cree `/mnt/dimension`
-- service `oneshot`
-- execute seulement `true`
+Behavior:
+- creates `/etc/dimension/storage`
+- creates `/mnt/dimension`
+- can enable Samba with wsdd
+- can enable SFTP through OpenSSH
 
-Pas encore implemente :
-- SMB
-- SFTP
-- montage automatique
-- partage `/home`
-- decouverte des machines
+Current limitations:
+- no automatic mount strategy
+- no approval-aware sharing
+- no machine discovery integration
+
+### `dimension-remote`
+
+Module:
+- `modules/remote/default.nix`
+
+Status:
+- real opt-in module
+
+Behavior:
+- creates `/etc/dimension/remote`
+- can enable Sunshine
+- can enable Wake-on-LAN on one interface or all detected Ethernet interfaces
+
+Current limitations:
+- no Dimension session model
+- no login-manager integration
+- no onboarding flow for WOL and remote access
 
 ---
 
-## Regles de contribution runtime
+## Desktop Runtime Defaults
 
-- Les chemins persistants vont dans `/var/lib/dimension*`.
-- Les logs texte vont dans `/var/log/dimension*` et doivent aussi partir vers journald quand un service tourne.
-- La configuration declarative locale va dans `/etc/dimension`.
-- Les services systemd doivent rester des modules Nix separes.
-- Les services reels doivent rester minimaux tant que leurs contrats ne sont pas documentes.
-- Aucun service ne doit ajouter API, reseau, stockage ou auth sans phase explicite.
+Current desktop-facing pieces:
+- `dimension-search` launches KRunner
+- Baloo also indexes `/mnt/dimension`
+- a default Plasma panel is provided through `/etc/xdg`
+- a system wallpaper and color scheme are shipped
+- SDDM uses a branded background
+
+Still missing:
+- Dimension Settings application
+- widgets
+- custom shell behavior
+- Dimension-specific search providers

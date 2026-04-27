@@ -1,182 +1,134 @@
 # Dimension - Roadmap
 
-## Phase 1 - Base générique
+## Phase 1 - Base
 
-Statut : terminé
+Status: complete
 
-- flake.nix structuré
-- hôte générique `main`
-- module `base`
-- configuration minimale évaluable
-- support VM / machine neutre
+- flake structure in place
+- generic `main` host
+- shared `base` module
+- reproducible evaluation through `nix flake check`
 
 ---
 
-## Phase 2 - Desktop minimal
+## Phase 2 - Desktop Foundation
 
-Statut : terminé
+Status: complete
 
-- module `desktop`
-- KDE Plasma Wayland
+- KDE Plasma 6 on Wayland
 - SDDM
 - NetworkManager
 - PipeWire
 - Bluetooth
-- paquets graphiques de base
+- baseline desktop packages
 
-Non inclus à ce stade :
-- thème Dimension / Layan
-- dock custom
-- Dimension Search
+---
+
+## Phase 3 - Editions
+
+Status: complete
+
+- `dimension.edition`
+- desktop, laptop, server, server-headless, print-station, gaming, workstation
+- edition-driven defaults
+
+---
+
+## Phase 4 - Installer Direction
+
+Status: partially complete
+
+Done:
+- installer flow documented
+- minimal CLI helper `dimension-install`
+
+Still missing:
+- host auto-registration in `flake.nix`
+- hardware config generation flow
+- graphical installer
+- ISO install UX
+
+---
+
+## Phase 5 - Current Runtime Modules
+
+Status: mixed
+
+Real and usable in local or opt-in form:
+- `hub`: minimal local HTTP registry using `nodes.json`
+- `node`: minimal local agent posting identity to the Hub
+- `storage`: Samba, wsdd, and SFTP options
+- `remote`: Sunshine and Wake-on-LAN options
+- `apps`: Dimension desktop entries
+- `kde-config`: KRunner, Baloo, default panel
+- `theme`: wallpaper, color scheme, SDDM branding
+
+Still placeholder or incomplete:
+- `network`: still a placeholder around NetworkManager and `/etc/dimension`
+- WireGuard: not present in the current module tree
+
+---
+
+## Phase 6 - Product Stabilization
+
+Status: current priority
+
+- keep documentation aligned with the real repository state
+- add smoke tests for key hosts and services
+- normalize file encoding and remove remaining mojibake
+- define clear runtime contracts for Hub, Node, and host onboarding
+
+---
+
+## Phase 7 - Network Backbone
+
+Status: next major engineering phase
+
+- restore or reintroduce a WireGuard module
+- define Hub-managed network identity model
+- move from loopback-only local dev to a safe LAN/VPN architecture
+- document secrets, key rotation, and peer lifecycle
+
+---
+
+## Phase 8 - Hub / Node Evolution
+
+Status: planned
+
+- migrate Hub persistence to a stronger backend when needed
+- add pairing approval workflow
+- improve Node retry, health, and local state handling
+- expose a more stable internal API contract
+
+---
+
+## Phase 9 - Shared Storage
+
+Status: planned
+
+- automatic mount strategy for approved machines
+- permissions model for shared paths
+- machine-aware storage discovery
+
+---
+
+## Phase 10 - Search, Settings, and Shell
+
+Status: planned
+
+- Dimension-specific search provider
+- real Dimension Settings application
 - widgets
+- longer-term custom shell work
 
 ---
 
-## Phase 3 - Éditions et profils
+## Phase 11 - Quality and Release Readiness
 
-Statut : terminé
+Status: planned
 
-- option `dimension.edition`
-- éditions documentées :
-  - desktop
-  - laptop
-  - server
-  - server-headless
-  - print-station
-  - gaming
-  - workstation
-- activation des fondations par édition
-- documentation `docs/EDITIONS.md`
-
----
-
-## Phase 4 - Cadrage installateur
-
-Statut : terminé
-
-- documentation `docs/INSTALLER.md`
-- parcours d’installation cadré
-- choix édition depuis un ISO unique
-- mode standalone prévu
-- onboarding post-installation identifié
-
----
-
-## Phase 5 - Fondations Dimension
-
-Statut : terminé
-
-- module `network` stub
-- module `node` stub
-- module `remote` stub
-- module `hub` stub
-- module `storage` stub
-
-Ces modules posent la structure système sans implémenter les services réels.
-
----
-
-## Phase 6 - Implémentation des premiers daemons réels
-
-Statut : prochaine grande phase
-
-Objectif :
-- remplacer progressivement les stubs par des daemons minimaux réels
-- conserver la modularité actuelle
-- garder chaque service activable et testable séparément
-
-Priorités envisagées :
-- `dimension-node` minimal
-- journalisation propre
-- fichiers d’état structurés
-- protocole local interne simple
-- base de communication future avec le Hub
-
-Hors périmètre initial :
-- WireGuard
-- pairing complet
-- sync multi-machines
-- stockage partagé réel
-- streaming
-- UI custom
-
----
-
-## Phase 7 - Hub réel
-
-Statut : à venir
-
-- API minimale
-- registre machines
-- auth simple
-- base persistante
-- intégration avec Dimension Node
-
----
-
-## Phase 8 - Réseau Dimension
-
-Statut : à venir
-
-- découverte locale
-- pairing
-- WireGuard
-- intégration Hub
-
----
-
-## Phase 9 - Stockage Dimension
-
-Statut : à venir
-
-- SMB
-- SFTP
-- montage automatique
-- espace unifié `/mnt/dimension`
-
----
-
-## Phase 10 - Bureau à distance natif
-
-Statut : à venir
-
-- intégration bureau à distance Dimension
-- sessions distantes
-- WOL configuré via onboarding
-- intégration future streaming si nécessaire
-
----
-
-## Phase 11 - Search, Shell et Widgets
-
-Statut : à venir
-
-- Dimension Search
-- providers simples
-- dock custom
-- widgets
-- shell complet
-
----
-
-## Phase 12 - Éditions spécialisées
-
-Statut : à venir
-
-- gaming
-- print-station
-- workstation
-- laptop avancé
-- outils propres à chaque édition
-
----
-
-## Phase 13 - Polissage
-
-Statut : à venir
-
-- thème Dimension
-- login custom
-- expérience installateur complète
-- performances
-- tests VM et machines réelles
+- NixOS VM tests
+- host validation matrix
+- security review
+- upgrade and rollback guidance
+- real-machine validation

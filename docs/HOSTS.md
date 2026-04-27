@@ -1,52 +1,54 @@
 # Dimension - Hosts
 
-Ce document decrit les hosts actuellement declares dans le flake.
+This document describes the hosts that are currently declared in the flake.
 
-Les hosts restent generiques : ils ne representent pas une machine physique
-precise et ne doivent pas contenir de details materiels non portables.
+They are generic validation hosts, not hardware-specific machine definitions.
 
 ---
 
-## main
+## `main`
 
-Fichier :
+File:
 - `hosts/main/configuration.nix`
 
-Role :
-- host generique `server-headless`
-- base de test local pour `dimension-hub` et `dimension-node`
-- configuration minimale sans bureau graphique
+Role:
+- generic local development host
+- default edition is `server-headless`
+- used to validate the minimal Hub / Node loopback setup
 
-Etat actuel :
-- `dimension.edition = "server-headless"` via `lib.mkDefault`
-- Hub active explicitement sur `127.0.0.1:8787`
-- Node configure pour joindre le Hub local
-- token de developpement lu depuis `/etc/dimension/secrets/hub-dev-token`
+Current specifics:
+- explicitly enables the Hub on `127.0.0.1:8787`
+- points the Node to that local Hub
+- expects a local development token at `/etc/dimension/secrets/hub-dev-token`
 
-Limite :
-- `main` ne sert pas au test UI
-- KDE, le theme, les applications `.desktop` et les icones graphiques ne sont
-  pas actives par defaut sur ce host
+Notes:
+- this host is intentionally not the visual desktop validation target
+- it keeps the focus on local runtime behavior
 
 ---
 
-## desktop-test
+## `desktop-test`
 
-Fichier :
+File:
 - `hosts/desktop-test/configuration.nix`
 
-Role :
-- host desktop generique de validation visuelle
-- cible de test pour KDE Plasma, la configuration KDE, le theme, les apps
-  Dimension et les icones
+Role:
+- generic desktop validation host
+- used to check KDE, panel, search, icons, wallpaper, and theme behavior
 
-Etat actuel :
-- `dimension.edition = "desktop"`
-- active les modules desktop via le profil d'edition
-- active KDE, la base de theme, les entrees `.desktop` Dimension et les
-  icones installees via le fallback `hicolor`
+Current specifics:
+- sets `dimension.edition = "desktop"`
+- pulls its behavior from the shared edition-driven modules
 
-Limite :
-- `desktop-test` reste un host de validation, pas une configuration materielle
-  specifique
-- il ne remplace pas `main` pour les tests Hub/Node locaux
+Notes:
+- this host is for UX validation, not for Hub / Node local development
+
+---
+
+## Generated Hosts
+
+The repository also ships `dimension-install`, a small CLI helper that can
+generate `hosts/<name>/configuration.nix` templates.
+
+Current limitation:
+- generated hosts are not added to `flake.nix` automatically yet
