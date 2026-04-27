@@ -1,4 +1,4 @@
-{ config, lib, ... }:
+{ config, lib, pkgs, ... }:
 
 let
   cfg = config.dimension;
@@ -30,15 +30,54 @@ in
     description = "Dimension edition to install on this machine.";
   };
 
-  config.dimension = {
-    apps.enable    = lib.mkDefault (cfg.edition != "server-headless");
-    desktop.enable = lib.mkDefault (cfg.edition != "server-headless");
-    hub.enable = lib.mkDefault (cfg.edition == "server");
-    kde.enable = lib.mkDefault (cfg.edition != "server-headless");
-    network.enable = lib.mkDefault true;
-    node.enable = lib.mkDefault true;
-    remote.enable = lib.mkDefault true;
-    storage.enable = lib.mkDefault true;
-    theme.enable = lib.mkDefault (cfg.edition != "server-headless");
-  };
+  config = lib.mkMerge [
+    {
+      dimension = {
+        apps.enable    = lib.mkDefault (cfg.edition != "server-headless");
+        desktop.enable = lib.mkDefault (cfg.edition != "server-headless");
+        hub.enable = lib.mkDefault (cfg.edition == "server");
+        kde.enable = lib.mkDefault (cfg.edition != "server-headless");
+        network.enable = lib.mkDefault true;
+        node.enable = lib.mkDefault true;
+        remote.enable = lib.mkDefault true;
+        storage.enable = lib.mkDefault true;
+        theme.enable = lib.mkDefault (cfg.edition != "server-headless");
+      };
+    }
+
+    (lib.mkIf (cfg.edition == "gaming") {
+      hardware.opengl.enable = true;
+      hardware.opengl.driSupport32Bit = true;
+      programs.steam.enable = true;
+      programs.gamemode.enable = true;
+
+      dimension.remote.sunshine.enable = lib.mkDefault true;
+    })
+
+    (lib.mkIf (cfg.edition == "workstation") {
+      environment.systemPackages = with pkgs; [
+        libreoffice
+        gimp
+        inkscape
+        vscode
+      ];
+
+      services.printing.enable = true;
+    })
+
+    (lib.mkIf (cfg.edition == "print-station") {
+      services.printing = {
+        enable = true;
+        drivers = [ pkgs.gutenprint ];
+      };
+
+      dimension.storage.samba.enable = lib.mkDefault true;
+    })
+
+    (lib.mkIf (cfg.edition == "laptop") {
+      services.tlp.enable = true;
+      services.fprintd.enable = true;
+      hardware.sensor.iio.enable = true;
+    })
+  ];
 }
