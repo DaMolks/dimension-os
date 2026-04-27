@@ -1,14 +1,48 @@
 # Dimension - Installateur
 
 Ce document cadre le futur parcours d'installation de Dimension.
-Il ne decrit pas une implementation actuelle : aucun installateur Dimension
-n'existe encore dans le depot.
+
+Etat actuel :
+- aucun installateur graphique Dimension n'existe encore dans le depot
+- un assistant CLI minimal `dimension-install` existe pour generer un
+  `hosts/<nom>/configuration.nix` dans le repo
+- cet assistant ne partitionne pas le disque et ne remplace pas
+  `nixos-generate-config`
 
 Objectif :
 - installer Dimension depuis un seul ISO
 - guider le choix d'une edition
 - garder les choix avances comprehensibles
 - produire une configuration NixOS reproductible
+
+---
+
+## Assistant CLI actuel
+
+Commande :
+
+```sh
+dimension-install [host-id]
+```
+
+Ce script :
+- detecte le repo Dimension courant
+- demande le nom du host, l'edition, l'utilisateur principal et
+  `system.stateVersion`
+- genere `hosts/<host-id>/configuration.nix`
+
+Limites actuelles :
+- pas de partitionnement
+- pas de detection Hub
+- pas de pairing
+- pas de creation automatique de `hardware-configuration.nix`
+- pas d'ajout automatique du host dans `flake.nix`
+
+Usage recommande :
+1. lancer `dimension-install`
+2. generer ou copier `hardware-configuration.nix` sur la machine cible
+3. ajouter le nouveau host dans `flake.nix`
+4. construire la configuration avec `nixos-rebuild` ou `nixos-install`
 
 ---
 
