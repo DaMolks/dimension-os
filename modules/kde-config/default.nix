@@ -45,6 +45,54 @@ in
         folders[$e]=$HOME,/mnt/dimension
         exclude folders[$e]=/proc,/sys,/dev,/nix,/run,/boot,/tmp
       '';
+
+      "xdg/plasma-org.kde.plasma.desktop-appletsrc".text = ''
+        [Containments][1]
+        activityId=
+        formfactor=2
+        immutability=1
+        lastScreen=0
+        location=4
+        plugin=org.kde.panel
+        wallpaperplugin=org.kde.image
+
+        [Containments][1][Applets][2]
+        immutability=1
+        plugin=org.kde.plasma.kickoff
+
+        [Containments][1][Applets][2][Configuration][Shortcuts]
+        global=Alt+F1
+
+        [Containments][1][Applets][3]
+        immutability=1
+        plugin=org.kde.plasma.icontasks
+
+        [Containments][1][Applets][3][Configuration][General]
+        launchers=applications:dimension-search.desktop,applications:dimension-hub.desktop,applications:dimension-settings.desktop
+
+        [Containments][1][Applets][4]
+        immutability=1
+        plugin=org.kde.plasma.systemtray
+
+        [Containments][1][Applets][4][Configuration]
+        SystrayContainmentId=5
+
+        [Containments][1][Applets][6]
+        immutability=1
+        plugin=org.kde.plasma.digitalclock
+
+        [Containments][1][General]
+        AppletOrder=2;3;4;6
+
+        [Containments][5]
+        activityId=
+        formfactor=2
+        immutability=1
+        lastScreen=0
+        location=4
+        plugin=org.kde.plasma.private.systemtray
+        wallpaperplugin=org.kde.image
+      '';
     };
   };
 }
