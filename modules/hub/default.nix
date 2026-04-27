@@ -116,6 +116,19 @@ def write_nodes(nodes):
     nodes_file.write_text(json.dumps(nodes, indent=2) + "\n", encoding="utf-8")
     nodes_file.chmod(0o644)
 
+def list_wireguard_peers():
+    peers = []
+    for node in read_nodes():
+        if not node.get("wg_pubkey"):
+            continue
+        peers.append({
+            "node_id": node["node_id"],
+            "hostname": node["hostname"],
+            "wg_pubkey": node["wg_pubkey"],
+            "last_seen": node["last_seen"],
+        })
+    return peers
+
 class Handler(BaseHTTPRequestHandler):
     def send_text(self, status, body):
         data = body.encode("utf-8")
@@ -148,6 +161,17 @@ class Handler(BaseHTTPRequestHandler):
                 nodes = read_nodes()
             self.send_json(200, nodes)
             log("GET /nodes 200")
+            return
+
+        if self.path == "/wireguard/peers":
+            if not check_auth(self):
+                self.send_text(401, "unauthorized\n")
+                log(f"GET /wireguard/peers 401 from {self.client_address[0]}")
+                return
+            with nodes_lock:
+                peers = list_wireguard_peers()
+            self.send_json(200, peers)
+            log("GET /wireguard/peers 200")
             return
 
         self.send_response(404)

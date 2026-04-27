@@ -233,6 +233,46 @@ Si aucun node n'est enregistre, la reponse est un tableau vide :
 
 ---
 
+### GET /wireguard/peers
+
+Retourne la vue WireGuard minimale du registre local.
+
+Cet endpoint est **protege** : requiert `Authorization: Bearer <token>` si
+`devTokenFile` est configure.
+
+Seuls les nodes ayant un `wg_pubkey` non vide apparaissent dans cette reponse.
+
+**Requete (mode avec token) :**
+
+```sh
+curl --header 'Authorization: Bearer <token>' http://127.0.0.1:8787/wireguard/peers
+```
+
+**Reponse succes :**
+
+```json
+[
+  {
+    "node_id": "550e8400-e29b-41d4-a716-446655440000",
+    "hostname": "my-machine",
+    "wg_pubkey": "base64-wireguard-public-key",
+    "last_seen": "2026-04-26T12:00:00+02:00"
+  }
+]
+```
+
+Cette vue ne configure encore aucun peer automatiquement.
+Elle sert uniquement a exposer les cles publiques connues du Hub pour la suite
+de l'integration VPN.
+
+**Reponses erreur :**
+
+| Code | Corps          | Cause                                       |
+|------|----------------|---------------------------------------------|
+| 401  | `unauthorized` | Token absent ou incorrect (mode avec token) |
+
+---
+
 ## Fichiers d'etat du Hub
 
 | Fichier                                 | Contenu                              |
@@ -264,6 +304,7 @@ Cette API est une API de developpement local minimal.
 - Aucun pairing : n'importe quel client connaissant le token peut s'enregistrer.
 - Aucun TLS : les communications sont en clair (acceptable sur loopback uniquement).
 - Le Hub ne distribue encore aucun peer WireGuard et ne configure aucun VPN.
+- `GET /wireguard/peers` expose seulement une vue lecture des cles publiques connues.
 - Pas de suppression de node : aucun endpoint pour retirer un node du registre.
 - Pas de validation avancee : seul `node_id` est verifie (presence et type).
 - Pas de pagination : `GET /nodes` retourne tout le registre d'un coup.

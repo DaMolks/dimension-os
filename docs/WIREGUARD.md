@@ -14,6 +14,7 @@ This is a local machine foundation only.
 The current Hub / Node contract also supports a minimal public-key flow:
 - `dimension-node` can send `wg_pubkey` in `POST /nodes/ping`
 - `dimension-hub` stores that key in `nodes.json`
+- `GET /wireguard/peers` exposes the known public keys back as a read-only view
 
 Peer orchestration and Hub-driven distribution are not implemented yet.
 
