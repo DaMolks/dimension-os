@@ -28,6 +28,12 @@
             ./hosts/desktop-test/configuration.nix
           ];
         };
+        installer = {
+          system = "x86_64-linux";
+          modules = [
+            ./hosts/installer/configuration.nix
+          ];
+        };
       };
     in
     {

@@ -45,6 +45,29 @@ Notes:
 
 ---
 
+## `installer`
+
+File:
+- `hosts/installer/configuration.nix`
+
+Role:
+- graphical live ISO target
+- used to build a Plasma 6 installer image with Dimension branding
+
+Current specifics:
+- imports the official NixOS Calamares Plasma 6 installer module
+- keeps Dimension apps, KDE defaults, and theme modules through the shared profile stack
+- explicitly disables runtime services that are not needed on the live ISO:
+- `dimension.desktop`
+- `dimension.hub`
+- `dimension.node`
+- `dimension.remote`
+- `dimension.storage`
+- `dimension.wireguard`
+
+Notes:
+- this host is intended for ISO builds, not for installed machines
+
 ## Generated Hosts
 
 The repository also ships `dimension-install`, a small CLI helper that can

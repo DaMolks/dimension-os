@@ -48,3 +48,4 @@ nix flake check --no-build
 
 - `main`: local Hub/Node development host, `server-headless` by default
 - `desktop-test`: visual validation host for desktop features
+- `installer`: graphical Plasma 6 live ISO target for installer testing
