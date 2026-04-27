@@ -172,6 +172,44 @@ EOF
     printf '  1. Run nixos-generate-config in the target system and copy hardware-configuration.nix.\n'
     printf '  2. Add the new host to flake.nix when ready.\n'
   '';
+  dimensionWgKeygen = pkgs.writeShellScriptBin "dimension-wg-keygen" ''
+    set -eu
+
+    target_dir="''${1:-/etc/dimension/secrets}"
+    private_key_file="$target_dir/wg-private-key"
+    public_key_file="$target_dir/wg-public-key"
+
+    if [ "$#" -gt 1 ]; then
+      printf 'usage: dimension-wg-keygen [target-dir]\n' >&2
+      exit 1
+    fi
+
+    if [ -e "$private_key_file" ] || [ -e "$public_key_file" ]; then
+      printf 'Refusing to overwrite existing WireGuard key files in %s\n' "$target_dir" >&2
+      exit 1
+    fi
+
+    ${pkgs.coreutils}/bin/install -d -m 0700 "$target_dir"
+    umask 077
+
+    ${pkgs.wireguard-tools}/bin/wg genkey > "$private_key_file"
+    ${pkgs.wireguard-tools}/bin/wg pubkey < "$private_key_file" > "$public_key_file"
+
+    ${pkgs.coreutils}/bin/chmod 0600 "$private_key_file"
+    ${pkgs.coreutils}/bin/chmod 0644 "$public_key_file"
+
+    printf 'Generated:\n'
+    printf '  private: %s\n' "$private_key_file"
+    printf '  public:  %s\n' "$public_key_file"
+    printf '\n'
+    printf 'Host snippet:\n'
+    printf '  dimension.wireguard = {\n'
+    printf '    enable = true;\n'
+    printf '    privateKeyFile = "%s";\n' "$private_key_file"
+    printf '    address = "10.100.0.X/24";\n'
+    printf '    openFirewall = true;\n'
+    printf '  };\n'
+  '';
 in
 {
   options.dimension.mainUser = lib.mkOption {
@@ -208,6 +246,7 @@ in
       lsof
       tree
       dimensionInstall
+      dimensionWgKeygen
     ];
 
     nix.settings = {

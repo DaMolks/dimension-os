@@ -100,6 +100,7 @@ Current risks:
 
 - `dimension.wireguard.enable` is opt-in
 - the private key is loaded from a local file path
+- `dimension-wg-keygen` generates keys locally on the machine
 - `openFirewall` stays `false` by default
 - no peers are configured by default
 
@@ -147,7 +148,7 @@ Before exposing any Dimension service beyond loopback:
 
 ## Immediate Security Priorities
 
-- document key management
+- document peer lifecycle
 - define pairing and approval rules
 - move away from a shared local dev token model for multi-machine use
 - add test coverage for exposed services and opt-in firewall paths

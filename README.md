@@ -14,6 +14,7 @@ Implemented today:
 - default Plasma panel with pinned Dimension entries
 - local development Hub and Node services with token-based protection
 - WireGuard foundation module with a `dimension0` interface, disabled by default
+- helper command `dimension-wg-keygen` for local WireGuard key generation
 - opt-in storage services through Samba, wsdd, and SFTP
 - opt-in remote services through Sunshine and Wake-on-LAN
 - minimal interactive `dimension-install` helper for generating new host configs

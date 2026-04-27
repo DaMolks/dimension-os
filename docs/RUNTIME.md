@@ -127,6 +127,7 @@ Current expectation:
 - not managed by the repository
 - referenced through `dimension.wireguard.privateKeyFile`
 - stored manually on the target machine
+- can be generated locally with `dimension-wg-keygen`
 
 ---
 
@@ -230,6 +231,7 @@ Behavior:
 - loads a private key from a file outside the repository
 - keeps `peers = []`
 - only opens the WireGuard listen port when `openFirewall = true`
+- can rely on `dimension-wg-keygen` for local key generation
 
 Current limitations:
 - no peer orchestration
