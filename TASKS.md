@@ -40,8 +40,8 @@
 
 ### Network foundation
 
-- [ ] Restore or reintroduce the WireGuard module
-- [ ] Export it through `flake.nix`
+- [x] Restore or reintroduce the WireGuard module
+- [x] Export it through `flake.nix`
 - [ ] Decide how hosts opt into VPN identity
 - [ ] Document key management and peer lifecycle
 

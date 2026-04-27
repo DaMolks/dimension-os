@@ -13,13 +13,14 @@ Implemented today:
 - Dimension Search entry wired to KRunner
 - default Plasma panel with pinned Dimension entries
 - local development Hub and Node services with token-based protection
+- WireGuard foundation module with a `dimension0` interface, disabled by default
 - opt-in storage services through Samba, wsdd, and SFTP
 - opt-in remote services through Sunshine and Wake-on-LAN
 - minimal interactive `dimension-install` helper for generating new host configs
 
 Not implemented yet:
 - production-grade Hub and Node protocol
-- WireGuard integration in the current tree
+- Hub-managed WireGuard orchestration
 - LAN-safe Hub exposure
 - pairing approval workflow
 - automatic shared storage mounting across machines

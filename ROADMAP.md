@@ -57,6 +57,7 @@ Status: mixed
 Real and usable in local or opt-in form:
 - `hub`: minimal local HTTP registry using `nodes.json`
 - `node`: minimal local agent posting identity to the Hub
+- `wireguard`: foundational `dimension0` interface module, disabled by default
 - `storage`: Samba, wsdd, and SFTP options
 - `remote`: Sunshine and Wake-on-LAN options
 - `apps`: Dimension desktop entries
@@ -65,7 +66,6 @@ Real and usable in local or opt-in form:
 
 Still placeholder or incomplete:
 - `network`: still a placeholder around NetworkManager and `/etc/dimension`
-- WireGuard: not present in the current module tree
 
 ---
 
@@ -84,7 +84,6 @@ Status: current priority
 
 Status: next major engineering phase
 
-- restore or reintroduce a WireGuard module
 - define Hub-managed network identity model
 - move from loopback-only local dev to a safe LAN/VPN architecture
 - document secrets, key rotation, and peer lifecycle

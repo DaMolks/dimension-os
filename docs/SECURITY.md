@@ -94,7 +94,19 @@ Current risks:
 
 - `dimension-network` is still a placeholder
 - no Avahi integration
-- no WireGuard module in the current tree
+- WireGuard exists as a local interface foundation only
+
+### WireGuard
+
+- `dimension.wireguard.enable` is opt-in
+- the private key is loaded from a local file path
+- `openFirewall` stays `false` by default
+- no peers are configured by default
+
+Current risks:
+- no automated key lifecycle
+- no peer approval workflow
+- no Hub-managed orchestration
 
 ---
 
@@ -135,7 +147,6 @@ Before exposing any Dimension service beyond loopback:
 
 ## Immediate Security Priorities
 
-- restore or reintroduce WireGuard cleanly
 - document key management
 - define pairing and approval rules
 - move away from a shared local dev token model for multi-machine use

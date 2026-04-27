@@ -15,10 +15,10 @@ Implemented now:
 - `dimension-hub` is a real minimal local HTTP service
 - `dimension-storage` is a real opt-in storage module
 - `dimension-remote` is a real opt-in remote module
+- `dimension-wireguard` exists as an opt-in interface foundation
 - `dimension-network` is still a placeholder
 
 Not implemented in the current tree:
-- WireGuard module
 - pairing approval workflow
 - LAN-safe Hub exposure
 - automatic storage mounting between machines
@@ -118,6 +118,16 @@ Current state:
 - created by the storage module
 - exported through Samba when `dimension.storage.samba.enable = true`
 
+### WireGuard private key path
+
+Purpose:
+- machine-local WireGuard secret material
+
+Current expectation:
+- not managed by the repository
+- referenced through `dimension.wireguard.privateKeyFile`
+- stored manually on the target machine
+
 ---
 
 ## Services
@@ -206,6 +216,26 @@ Current limitations:
 - no automatic mount strategy
 - no approval-aware sharing
 - no machine discovery integration
+
+### `dimension-wireguard`
+
+Module:
+- `modules/wireguard/default.nix`
+
+Status:
+- foundational opt-in module
+
+Behavior:
+- declares `networking.wireguard.interfaces.dimension0`
+- loads a private key from a file outside the repository
+- keeps `peers = []`
+- only opens the WireGuard listen port when `openFirewall = true`
+
+Current limitations:
+- no peer orchestration
+- no Hub integration
+- no key distribution
+- no automatic host defaults
 
 ### `dimension-remote`
 

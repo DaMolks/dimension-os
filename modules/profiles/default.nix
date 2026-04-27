@@ -14,6 +14,7 @@ in
     ../remote
     ../storage
     ../theme
+    ../wireguard
   ];
 
   options.dimension.edition = lib.mkOption {
@@ -42,6 +43,7 @@ in
         remote.enable = lib.mkDefault true;
         storage.enable = lib.mkDefault true;
         theme.enable = lib.mkDefault (cfg.edition != "server-headless");
+        wireguard.enable = lib.mkDefault false;
       };
     }
 

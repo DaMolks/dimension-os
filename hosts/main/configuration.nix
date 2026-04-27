@@ -33,6 +33,16 @@
     hubTokenFile = "/etc/dimension/secrets/hub-dev-token";
   };
 
+  # WireGuard is intentionally disabled here until the Dimension VPN
+  # subnet and peer orchestration are defined.
+  #
+  # dimension.wireguard = {
+  #   enable = true;
+  #   privateKeyFile = "/etc/dimension/secrets/wg-private-key";
+  #   address = "10.100.0.X/24";
+  #   openFirewall = true;
+  # };
+
   # Shared group allowing both dimension-hub and dimension-node to read secrets.
   users.groups.dimension-secrets = {};
   users.users.dimension-hub.extraGroups = [ "dimension-secrets" ];

@@ -46,6 +46,7 @@
         services = import ./modules/services;
         storage = import ./modules/storage;
         theme = import ./modules/theme;
+        wireguard = import ./modules/wireguard;
       };
     };
 }
