@@ -9,8 +9,10 @@ let
     log_dir="''${DIMENSION_NODE_LOG_DIR:-/var/log/dimension}"
     hub_url=${lib.escapeShellArg cfg.hubUrl}
     hub_token_file=${lib.escapeShellArg cfg.hubTokenFile}
+    wg_public_key_file=${lib.escapeShellArg cfg.wgPublicKeyFile}
     id_file="$state_dir/id"
     identity_file="$state_dir/identity.json"
+    payload_file="$state_dir/payload.json"
     log_file="$log_dir/node.log"
 
     mkdir -p "$state_dir" "$log_dir"
@@ -44,6 +46,16 @@ let
 
     read -r node_id < "$id_file"
 
+    wg_pubkey=""
+    if [ -n "$wg_public_key_file" ]; then
+      if [ -s "$wg_public_key_file" ]; then
+        wg_pubkey="$(${pkgs.coreutils}/bin/cat "$wg_public_key_file")"
+        log "wireguard public key loaded"
+      else
+        log "WARNING: wireguard public key file not found or empty"
+      fi
+    fi
+
     if [ ! -s "$identity_file" ]; then
       if [ -r /proc/sys/kernel/hostname ]; then
         read -r hostname < /proc/sys/kernel/hostname
@@ -53,14 +65,20 @@ let
 
       created_at="$(${pkgs.coreutils}/bin/date -Is)"
 
-      ${pkgs.coreutils}/bin/cat > "$identity_file" <<EOF
-{
-  "node_id": "$node_id",
-  "hostname": "$hostname",
-  "created_at": "$created_at",
-  "version": 1
+      ${pkgs.python3}/bin/python3 -c "
+import json
+import sys
+
+data = {
+    'node_id': sys.argv[1],
+    'hostname': sys.argv[2],
+    'created_at': sys.argv[3],
+    'version': 1,
 }
-EOF
+if sys.argv[4]:
+    data['wg_pubkey'] = sys.argv[4]
+print(json.dumps(data, indent=2))
+" "$node_id" "$hostname" "$created_at" "$wg_pubkey" > "$identity_file"
       ${pkgs.coreutils}/bin/chmod 0644 "$identity_file"
       log "created node identity"
     else
@@ -81,18 +99,35 @@ EOF
       fi
     fi
 
+    build_payload() {
+      ${pkgs.python3}/bin/python3 -c "
+import json
+import sys
+from pathlib import Path
+
+identity = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+wg_pubkey = sys.argv[2]
+if wg_pubkey:
+    identity['wg_pubkey'] = wg_pubkey
+else:
+    identity.pop('wg_pubkey', None)
+print(json.dumps(identity, indent=2))
+" "$identity_file" "$wg_pubkey" > "$payload_file"
+      ${pkgs.coreutils}/bin/chmod 0644 "$payload_file"
+    }
+
     while true; do
-      log "timestamp"
+      build_payload
 
       if [ -n "$hub_url" ]; then
         if [ -n "$hub_token" ]; then
-          if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' --header "Authorization: Bearer $hub_token" --data-binary "@$identity_file" "$hub_url/nodes/ping" 2>&1 >/dev/null)"; then
+          if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' --header "Authorization: Bearer $hub_token" --data-binary "@$payload_file" "$hub_url/nodes/ping" 2>&1 >/dev/null)"; then
             log "hub node ping succeeded"
           else
             log "hub node ping failed: $curl_error"
           fi
         else
-          if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' --data-binary "@$identity_file" "$hub_url/nodes/ping" 2>&1 >/dev/null)"; then
+          if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' --data-binary "@$payload_file" "$hub_url/nodes/ping" 2>&1 >/dev/null)"; then
             log "hub node ping succeeded"
           else
             log "hub node ping failed: $curl_error"
@@ -122,6 +157,16 @@ in
         when the node posts its identity to the Hub (POST /nodes/ping).
         When empty, requests are sent without authentication header.
         The token must never be stored in Git.
+      '';
+    };
+
+    wgPublicKeyFile = lib.mkOption {
+      type = lib.types.str;
+      default = "";
+      description = ''
+        Optional path to a file containing the WireGuard public key for this
+        machine. When set, the node includes `wg_pubkey` in the payload sent to
+        the Hub. The file must contain the public key only.
       '';
     };
   };

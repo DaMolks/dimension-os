@@ -11,7 +11,11 @@ The repository ships an opt-in WireGuard module:
 - no peers configured by default
 
 This is a local machine foundation only.
-Peer orchestration and Hub integration are not implemented yet.
+The current Hub / Node contract also supports a minimal public-key flow:
+- `dimension-node` can send `wg_pubkey` in `POST /nodes/ping`
+- `dimension-hub` stores that key in `nodes.json`
+
+Peer orchestration and Hub-driven distribution are not implemented yet.
 
 ## Enable on a Host
 
@@ -68,6 +72,7 @@ The helper:
 
 ## What Is Still Missing
 
+- peer configuration generation
 - peer distribution
 - Hub-managed approval workflow
 - key rotation workflow

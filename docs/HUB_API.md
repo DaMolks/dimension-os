@@ -100,8 +100,9 @@ Enregistre ou met a jour un node dans le registre local du Hub.
 Cet endpoint est **protege** : requiert `Authorization: Bearer <token>` si
 `devTokenFile` est configure.
 
-Le node poste son identity.json. Le Hub extrait `node_id` et `hostname`,
-puis stocke ou actualise l'entree dans `nodes.json`.
+Le node poste son identity.json. Le Hub extrait `node_id`, `hostname` et
+optionnellement `wg_pubkey`, puis stocke ou actualise l'entree dans
+`nodes.json`.
 
 **Corps attendu (JSON) :**
 
@@ -109,6 +110,7 @@ puis stocke ou actualise l'entree dans `nodes.json`.
 {
   "node_id": "550e8400-e29b-41d4-a716-446655440000",
   "hostname": "my-machine",
+  "wg_pubkey": "base64-wireguard-public-key",
   "created_at": "2026-04-26T12:00:00+02:00",
   "version": 1
 }
@@ -118,10 +120,11 @@ puis stocke ou actualise l'entree dans `nodes.json`.
 |--------------|--------|-------------|------------------------------------------|
 | `node_id`    | string | oui         | Identifiant unique du node (UUID)        |
 | `hostname`   | string | non         | Nom d'hote de la machine                 |
+| `wg_pubkey`  | string | non         | Cle publique WireGuard du node           |
 | `created_at` | string | non         | Ignored par le Hub (conserve par le Node)|
 | `version`    | int    | non         | Ignored par le Hub                       |
 
-Seuls `node_id` et `hostname` sont lus et stockes par le Hub.
+Seuls `node_id`, `hostname` et `wg_pubkey` sont lus et stockes par le Hub.
 Les autres champs du payload sont ignores.
 
 **Requete (mode non authentifie) :**
@@ -129,7 +132,7 @@ Les autres champs du payload sont ignores.
 ```sh
 curl --request POST \
      --header 'Content-Type: application/json' \
-     --data '{"node_id":"550e8400-e29b-41d4-a716-446655440000","hostname":"my-machine"}' \
+     --data '{"node_id":"550e8400-e29b-41d4-a716-446655440000","hostname":"my-machine","wg_pubkey":"base64-wireguard-public-key"}' \
      http://127.0.0.1:8787/nodes/ping
 ```
 
@@ -139,7 +142,7 @@ curl --request POST \
 curl --request POST \
      --header 'Content-Type: application/json' \
      --header 'Authorization: Bearer <token>' \
-     --data '{"node_id":"550e8400-e29b-41d4-a716-446655440000","hostname":"my-machine"}' \
+     --data '{"node_id":"550e8400-e29b-41d4-a716-446655440000","hostname":"my-machine","wg_pubkey":"base64-wireguard-public-key"}' \
      http://127.0.0.1:8787/nodes/ping
 ```
 
@@ -201,7 +204,8 @@ Content-Type: application/json; charset=utf-8
   {
     "node_id": "550e8400-e29b-41d4-a716-446655440000",
     "hostname": "my-machine",
-    "last_seen": "2026-04-26T12:00:00+02:00"
+    "last_seen": "2026-04-26T12:00:00+02:00",
+    "wg_pubkey": "base64-wireguard-public-key"
   }
 ]
 ```
@@ -219,6 +223,7 @@ Si aucun node n'est enregistre, la reponse est un tableau vide :
 | `node_id`   | string | Identifiant unique du node (UUID)              |
 | `hostname`  | string | Nom d'hote (vide si non fourni par le node)    |
 | `last_seen` | string | Horodatage ISO 8601 du dernier ping recu       |
+| `wg_pubkey` | string | Cle publique WireGuard connue du Hub           |
 
 **Reponses erreur :**
 
@@ -243,7 +248,7 @@ Si aucun node n'est enregistre, la reponse est un tableau vide :
 
 Lors d'un `POST /nodes/ping` :
 - Si `node_id` est inconnu : un nouvel entree est ajoutee.
-- Si `node_id` est deja connu : `hostname` et `last_seen` sont mis a jour.
+- Si `node_id` est deja connu : `hostname`, `last_seen` et `wg_pubkey` sont mis a jour.
 - Les acces au registre sont proteges par un verrou thread-safe.
 
 ---
@@ -258,7 +263,7 @@ Cette API est une API de developpement local minimal.
 - Le token est un secret partagé simple, pas une authentification forte.
 - Aucun pairing : n'importe quel client connaissant le token peut s'enregistrer.
 - Aucun TLS : les communications sont en clair (acceptable sur loopback uniquement).
-- Aucun WireGuard : le Hub n'est pas integre au reseau VPN.
+- Le Hub ne distribue encore aucun peer WireGuard et ne configure aucun VPN.
 - Pas de suppression de node : aucun endpoint pour retirer un node du registre.
 - Pas de validation avancee : seul `node_id` est verifie (presence et type).
 - Pas de pagination : `GET /nodes` retourne tout le registre d'un coup.

@@ -100,7 +100,17 @@ def read_nodes():
     data = json.loads(nodes_file.read_text(encoding="utf-8"))
     if not isinstance(data, list):
         return []
-    return [node for node in data if isinstance(node, dict)]
+    nodes = []
+    for node in data:
+        if not isinstance(node, dict):
+            continue
+        nodes.append({
+            "node_id": str(node.get("node_id", "")).strip(),
+            "hostname": str(node.get("hostname", "")).strip(),
+            "last_seen": str(node.get("last_seen", "")).strip(),
+            "wg_pubkey": str(node.get("wg_pubkey", "")).strip(),
+        })
+    return [node for node in nodes if node["node_id"]]
 
 def write_nodes(nodes):
     nodes_file.write_text(json.dumps(nodes, indent=2) + "\n", encoding="utf-8")
@@ -182,6 +192,10 @@ class Handler(BaseHTTPRequestHandler):
         if not isinstance(hostname, str):
             hostname = ""
         hostname = hostname.strip()
+        wg_pubkey = payload.get("wg_pubkey", "")
+        if not isinstance(wg_pubkey, str):
+            wg_pubkey = ""
+        wg_pubkey = wg_pubkey.strip()
         last_seen = current_timestamp()
 
         with nodes_lock:
@@ -192,6 +206,7 @@ class Handler(BaseHTTPRequestHandler):
                 if node.get("node_id") == node_id:
                     node["hostname"] = hostname
                     node["last_seen"] = last_seen
+                    node["wg_pubkey"] = wg_pubkey
                     updated = True
                     break
 
@@ -200,11 +215,15 @@ class Handler(BaseHTTPRequestHandler):
                     "node_id": node_id,
                     "hostname": hostname,
                     "last_seen": last_seen,
+                    "wg_pubkey": wg_pubkey,
                 })
 
             write_nodes(nodes)
 
-        log(f"node ping stored: node_id={log_value(node_id)} hostname={log_value(hostname)}")
+        log(
+            f"node ping stored: node_id={log_value(node_id)} "
+            f"hostname={log_value(hostname)} wg_pubkey={'yes' if wg_pubkey else 'no'}"
+        )
         self.send_text(200, "ok\n")
 
     def log_message(self, format, *args):
