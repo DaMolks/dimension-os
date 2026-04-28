@@ -13,6 +13,8 @@ let
     id_file="$state_dir/id"
     identity_file="$state_dir/identity.json"
     payload_file="$state_dir/payload.json"
+    peers_file="$state_dir/peers.json"
+    peers_tmp_file="$state_dir/peers.json.tmp"
     log_file="$log_dir/node.log"
 
     mkdir -p "$state_dir" "$log_dir"
@@ -99,6 +101,11 @@ print(json.dumps(data, indent=2))
       fi
     fi
 
+    curl_auth_args=()
+    if [ -n "$hub_token" ]; then
+      curl_auth_args=(--header "Authorization: Bearer $hub_token")
+    fi
+
     build_payload() {
       ${pkgs.python3}/bin/python3 -c "
 import json
@@ -116,22 +123,51 @@ print(json.dumps(identity, indent=2))
       ${pkgs.coreutils}/bin/chmod 0644 "$payload_file"
     }
 
+    send_node_ping() {
+      if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' "''${curl_auth_args[@]}" --data-binary "@$payload_file" "$hub_url/nodes/ping" 2>&1 >/dev/null)"; then
+        log "hub node ping succeeded"
+      else
+        log "hub node ping failed: $curl_error"
+      fi
+    }
+
+    count_wireguard_peers() {
+      ${pkgs.python3}/bin/python3 -c "
+import json
+import sys
+from pathlib import Path
+
+data = json.loads(Path(sys.argv[1]).read_text(encoding='utf-8'))
+if not isinstance(data, list):
+    raise SystemExit('hub response is not a JSON array')
+print(len(data))
+" "$1"
+    }
+
+    fetch_wireguard_config() {
+      if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 "''${curl_auth_args[@]}" --output "$peers_tmp_file" "$hub_url/wireguard/config?node_id=$node_id" 2>&1)"; then
+        if peer_count="$(count_wireguard_peers "$peers_tmp_file" 2>&1)"; then
+          ${pkgs.coreutils}/bin/chmod 0644 "$peers_tmp_file"
+          ${pkgs.coreutils}/bin/mv -f "$peers_tmp_file" "$peers_file"
+          log "wireguard peers updated: $peer_count peers"
+        else
+          ${pkgs.coreutils}/bin/rm -f "$peers_tmp_file"
+          log "wireguard peers update failed: invalid response: $peer_count"
+        fi
+      else
+        ${pkgs.coreutils}/bin/rm -f "$peers_tmp_file"
+        log "wireguard peers update failed: $curl_error"
+      fi
+    }
+
     while true; do
       build_payload
 
       if [ -n "$hub_url" ]; then
-        if [ -n "$hub_token" ]; then
-          if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' --header "Authorization: Bearer $hub_token" --data-binary "@$payload_file" "$hub_url/nodes/ping" 2>&1 >/dev/null)"; then
-            log "hub node ping succeeded"
-          else
-            log "hub node ping failed: $curl_error"
-          fi
-        else
-          if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' --data-binary "@$payload_file" "$hub_url/nodes/ping" 2>&1 >/dev/null)"; then
-            log "hub node ping succeeded"
-          else
-            log "hub node ping failed: $curl_error"
-          fi
+        send_node_ping
+
+        if [ -n "$wg_public_key_file" ] && [ -n "$wg_pubkey" ]; then
+          fetch_wireguard_config
         fi
       fi
 

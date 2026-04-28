@@ -15,8 +15,10 @@ The current Hub / Node contract also supports a minimal public-key flow:
 - `dimension-node` can send `wg_pubkey` in `POST /nodes/ping`
 - `dimension-hub` stores that key in `nodes.json`
 - `GET /wireguard/peers` exposes the known public keys back as a read-only view
+- `GET /wireguard/config?node_id=...` returns the other known peers for one node
+- `dimension-node` persists that response to `/var/lib/dimension/node/peers.json`
 
-Peer orchestration and Hub-driven distribution are not implemented yet.
+Hub-driven peer list distribution now exists, but peer application is not implemented yet.
 
 ## Enable on a Host
 
@@ -73,8 +75,8 @@ The helper:
 
 ## What Is Still Missing
 
-- peer configuration generation
-- peer distribution
+- peer application to the live `dimension0` interface
+- peer endpoint and address distribution
 - Hub-managed approval workflow
 - key rotation workflow
 - automatic host enrollment

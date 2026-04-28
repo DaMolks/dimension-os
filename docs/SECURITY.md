@@ -67,7 +67,7 @@ Current risks:
 Current risks:
 - no pairing
 - no strong identity model
-- no WireGuard
+- no applied WireGuard peer configuration
 - no retry backoff
 
 ### Storage
@@ -107,7 +107,7 @@ Current risks:
 Current risks:
 - no automated key lifecycle
 - no peer approval workflow
-- no Hub-managed orchestration
+- no applied interface reconciliation from Hub-distributed peer data
 
 ---
 

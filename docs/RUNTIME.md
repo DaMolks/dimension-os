@@ -48,10 +48,12 @@ Current files:
 - `agent.sh`
 - `id`
 - `identity.json`
+- `peers.json`
 
 Behavior:
 - `id` is created on first start if missing
 - `identity.json` is created on first start if missing
+- `peers.json` is refreshed after successful Hub WireGuard config fetches
 
 ### `/var/log/dimension`
 
@@ -146,13 +148,16 @@ Behavior:
 - creates local identity if missing
 - optionally reads a bearer token from `dimension.node.hubTokenFile`
 - posts `identity.json` to `POST /nodes/ping`
+- optionally reads a WireGuard public key from `dimension.node.wgPublicKeyFile`
+- fetches `GET /wireguard/config?node_id=...` after each loop when a WireGuard public key is available
+- persists fetched peers to `peers.json`
 - logs to journald and `/var/log/dimension/node.log`
 - loops forever with a fixed 60 second delay
 
 Current limitations:
 - no pairing
-- no WireGuard
-- no structured local state beyond identity files
+- no applied WireGuard peer configuration yet
+- no structured local state beyond small JSON state files
 - no LAN discovery
 - no backoff
 
@@ -167,8 +172,8 @@ Status:
 Behavior:
 - runs as system user `dimension-hub`
 - binds to `127.0.0.1:8787` by default
-- serves `GET /ping`, `GET /nodes`, and `POST /nodes/ping`
-- optionally protects `GET /nodes` and `POST /nodes/ping` with a bearer token
+- serves `GET /ping`, `GET /nodes`, `GET /wireguard/peers`, `GET /wireguard/config`, and `POST /nodes/ping`
+- optionally protects `GET /nodes`, `GET /wireguard/peers`, `GET /wireguard/config`, and `POST /nodes/ping` with a bearer token
 - persists registered nodes in `/var/lib/dimension-hub/nodes.json`
 - logs to journald and `/var/log/dimension-hub/hub.log`
 
@@ -180,6 +185,7 @@ Current limitations:
 - no pairing
 - no LAN-safe exposure
 - no TLS
+- no direct WireGuard interface application
 
 ### `dimension-network`
 
@@ -234,9 +240,9 @@ Behavior:
 - can rely on `dimension-wg-keygen` for local key generation
 
 Current limitations:
-- no peer orchestration
-- no Hub integration
-- no key distribution
+- no peer application to `dimension0`
+- no peer endpoint or address distribution
+- no approval-aware peer lifecycle
 - no automatic host defaults
 
 ### `dimension-remote`

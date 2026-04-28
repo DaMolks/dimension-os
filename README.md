@@ -14,6 +14,7 @@ Implemented today:
 - default Plasma panel with pinned Dimension entries
 - local development Hub and Node services with token-based protection
 - WireGuard foundation module with a `dimension0` interface, disabled by default
+- Hub-distributed WireGuard peer list fetch and local Node persistence
 - helper command `dimension-wg-keygen` for local WireGuard key generation
 - opt-in storage services through Samba, wsdd, and SFTP
 - opt-in remote services through Sunshine and Wake-on-LAN
@@ -21,7 +22,7 @@ Implemented today:
 
 Not implemented yet:
 - production-grade Hub and Node protocol
-- Hub-managed WireGuard orchestration
+- Hub-managed WireGuard interface application
 - LAN-safe Hub exposure
 - pairing approval workflow
 - automatic shared storage mounting across machines

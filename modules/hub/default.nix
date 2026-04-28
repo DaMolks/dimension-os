@@ -6,6 +6,7 @@ let
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from datetime import datetime, timezone
+from urllib.parse import unquote_plus
 import json
 import os
 import socket
@@ -116,6 +117,26 @@ def write_nodes(nodes):
     nodes_file.write_text(json.dumps(nodes, indent=2) + "\n", encoding="utf-8")
     nodes_file.chmod(0o644)
 
+def parse_query_string(path):
+    _, _, query = path.partition("?")
+    params = {}
+    if not query:
+        return params
+
+    for pair in query.split("&"):
+        if not pair:
+            continue
+
+        key, sep, value = pair.partition("=")
+        key = unquote_plus(key)
+        value = unquote_plus(value) if sep else ""
+
+        if key not in params:
+            params[key] = []
+        params[key].append(value)
+
+    return params
+
 def list_wireguard_peers():
     peers = []
     for node in read_nodes():
@@ -128,6 +149,27 @@ def list_wireguard_peers():
             "last_seen": node["last_seen"],
         })
     return peers
+
+def list_wireguard_config(node_id):
+    nodes = read_nodes()
+    node_exists = False
+    peers = []
+
+    for node in nodes:
+        if node["node_id"] == node_id:
+            node_exists = True
+            continue
+
+        if not node.get("wg_pubkey"):
+            continue
+
+        peers.append({
+            "node_id": node["node_id"],
+            "hostname": node["hostname"],
+            "wg_pubkey": node["wg_pubkey"],
+        })
+
+    return node_exists, peers
 
 class Handler(BaseHTTPRequestHandler):
     def send_text(self, status, body):
@@ -147,12 +189,14 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):
-        if self.path == "/ping":
+        request_path, _, _ = self.path.partition("?")
+
+        if request_path == "/ping":
             self.send_text(200, "ok\n")
             log(f"GET /ping 200 from {self.client_address[0]}")
             return
 
-        if self.path == "/nodes":
+        if request_path == "/nodes":
             if not check_auth(self):
                 self.send_text(401, "unauthorized\n")
                 log(f"GET /nodes 401 from {self.client_address[0]}")
@@ -163,7 +207,7 @@ class Handler(BaseHTTPRequestHandler):
             log("GET /nodes 200")
             return
 
-        if self.path == "/wireguard/peers":
+        if request_path == "/wireguard/peers":
             if not check_auth(self):
                 self.send_text(401, "unauthorized\n")
                 log(f"GET /wireguard/peers 401 from {self.client_address[0]}")
@@ -172,6 +216,35 @@ class Handler(BaseHTTPRequestHandler):
                 peers = list_wireguard_peers()
             self.send_json(200, peers)
             log("GET /wireguard/peers 200")
+            return
+
+        if request_path == "/wireguard/config":
+            if not check_auth(self):
+                self.send_text(401, "unauthorized\n")
+                log(f"GET /wireguard/config 401 from {self.client_address[0]}")
+                return
+
+            params = parse_query_string(self.path)
+            node_values = params.get("node_id", [])
+            node_id = node_values[0].strip() if node_values else ""
+            if not node_id:
+                self.send_text(400, "missing node_id\n")
+                log("GET /wireguard/config 400 missing node_id")
+                return
+
+            with nodes_lock:
+                node_exists, peers = list_wireguard_config(node_id)
+
+            if not node_exists:
+                self.send_text(404, "node not found\n")
+                log(f"GET /wireguard/config 404 node_id={log_value(node_id)}")
+                return
+
+            self.send_json(200, peers)
+            log(
+                f"GET /wireguard/config 200 node_id={log_value(node_id)} "
+                f"peers={len(peers)}"
+            )
             return
 
         self.send_response(404)
@@ -289,6 +362,7 @@ in
       description = ''
         Path to a file containing a bearer token used to authenticate requests
         to protected Hub API endpoints (POST /nodes/ping, GET /nodes).
+        This also protects GET /wireguard/peers and GET /wireguard/config.
         When empty, the Hub runs in unauthenticated local dev mode and logs a
         warning. The token must never be stored in Git.
       '';

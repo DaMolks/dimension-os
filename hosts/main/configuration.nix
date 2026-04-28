@@ -34,7 +34,7 @@
   };
 
   # WireGuard is intentionally disabled here until the Dimension VPN
-  # subnet and peer orchestration are defined.
+  # subnet and peer application flow are defined.
   #
   # dimension.wireguard = {
   #   enable = true;

@@ -273,6 +273,56 @@ de l'integration VPN.
 
 ---
 
+### GET /wireguard/config?node_id=<id>
+
+Retourne la configuration WireGuard minimale visible pour un node donne.
+
+Cet endpoint est **protege** : requiert `Authorization: Bearer <token>` si
+`devTokenFile` est configure.
+
+Le `node_id` demandeur doit deja exister dans `nodes.json`, sinon le Hub
+retourne `404`.
+
+Seuls les **autres** nodes ayant un `wg_pubkey` non vide apparaissent dans la
+reponse. Le node demandeur n'est jamais inclus dans sa propre liste.
+
+**Requete (mode avec token) :**
+
+```sh
+curl --header 'Authorization: Bearer <token>' \
+     'http://127.0.0.1:8787/wireguard/config?node_id=550e8400-e29b-41d4-a716-446655440000'
+```
+
+**Reponse succes :**
+
+```json
+[
+  {
+    "node_id": "11111111-1111-1111-1111-111111111111",
+    "hostname": "peer-a",
+    "wg_pubkey": "base64-wireguard-public-key-a"
+  },
+  {
+    "node_id": "22222222-2222-2222-2222-222222222222",
+    "hostname": "peer-b",
+    "wg_pubkey": "base64-wireguard-public-key-b"
+  }
+]
+```
+
+Cette vue est destinee au `dimension-node`, qui la persiste localement pour une
+future etape d'application sur l'interface WireGuard.
+
+**Reponses erreur :**
+
+| Code | Corps             | Cause                                       |
+|------|-------------------|---------------------------------------------|
+| 401  | `unauthorized`    | Token absent ou incorrect (mode avec token) |
+| 400  | `missing node_id` | Parametre `node_id` absent ou vide          |
+| 404  | `node not found`  | `node_id` inconnu dans `nodes.json`         |
+
+---
+
 ## Fichiers d'etat du Hub
 
 | Fichier                                 | Contenu                              |
@@ -303,8 +353,8 @@ Cette API est une API de developpement local minimal.
 - Le token est un secret partagé simple, pas une authentification forte.
 - Aucun pairing : n'importe quel client connaissant le token peut s'enregistrer.
 - Aucun TLS : les communications sont en clair (acceptable sur loopback uniquement).
-- Le Hub ne distribue encore aucun peer WireGuard et ne configure aucun VPN.
-- `GET /wireguard/peers` expose seulement une vue lecture des cles publiques connues.
+- Le Hub distribue maintenant une liste JSON de peers, mais ne configure encore aucun VPN.
+- `GET /wireguard/peers` et `GET /wireguard/config` exposent seulement des vues lecture des cles publiques connues.
 - Pas de suppression de node : aucun endpoint pour retirer un node du registre.
 - Pas de validation avancee : seul `node_id` est verifie (presence et type).
 - Pas de pagination : `GET /nodes` retourne tout le registre d'un coup.
@@ -323,7 +373,7 @@ Sans `devTokenFile` configure :
   developpement local isole.
 
 Avec `devTokenFile` configure :
-- Les endpoints proteges (`POST /nodes/ping`, `GET /nodes`) exigent un token.
+- Les endpoints proteges (`POST /nodes/ping`, `GET /nodes`, `GET /wireguard/peers`, `GET /wireguard/config`) exigent un token.
 - Le token n'est jamais loggue.
 - Le token ne doit jamais etre stocke dans Git.
 - Ce mode reste insuffisant pour une exposition LAN.
