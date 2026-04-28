@@ -21,6 +21,7 @@ in
     type = lib.types.enum [
       "desktop"
       "laptop"
+      "home-theatre"
       "server"
       "server-headless"
       "print-station"

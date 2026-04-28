@@ -61,26 +61,28 @@ let
 Choose a Dimension edition:
   1. desktop
   2. laptop
-  3. server
-  4. server-headless
-  5. print-station
-  6. gaming
-  7. workstation
+  3. home-theatre
+  4. server
+  5. server-headless
+  6. print-station
+  7. gaming
+  8. workstation
 EOF
-        printf 'Edition [1-7]: ' >&2
+        printf 'Edition [1-8]: ' >&2
         read -r choice
 
         case "$choice" in
           1) printf 'desktop\n'; return 0 ;;
           2) printf 'laptop\n'; return 0 ;;
-          3) printf 'server\n'; return 0 ;;
-          4) printf 'server-headless\n'; return 0 ;;
-          5) printf 'print-station\n'; return 0 ;;
-          6) printf 'gaming\n'; return 0 ;;
-          7) printf 'workstation\n'; return 0 ;;
+          3) printf 'home-theatre\n'; return 0 ;;
+          4) printf 'server\n'; return 0 ;;
+          5) printf 'server-headless\n'; return 0 ;;
+          6) printf 'print-station\n'; return 0 ;;
+          7) printf 'gaming\n'; return 0 ;;
+          8) printf 'workstation\n'; return 0 ;;
         esac
 
-        printf 'Invalid choice. Please select a number from 1 to 7.\n' >&2
+        printf 'Invalid choice. Please select a number from 1 to 8.\n' >&2
       done
     }
 

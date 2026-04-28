@@ -71,6 +71,7 @@ A ce stade, aucun partitionneur Dimension n'est implemente.
 L'utilisateur choisit l'edition a installer :
 - desktop
 - laptop
+- home-theatre
 - server
 - server-headless
 - print-station

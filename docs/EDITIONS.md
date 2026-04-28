@@ -62,6 +62,30 @@ Pas encore implemente :
 
 ---
 
+## home-theatre
+
+Usage prevu :
+- machine salon ou media center
+- interface dediee au playback plein ecran
+- variante graphique ou le panel KDE doit rester discret par defaut
+
+Desktop :
+- active
+
+Fonctions futures envisagees :
+- integration TV et telecommande
+- lancement direct d'apps media
+- parcours simplifie pour usage canape
+- stockage et bibliotheque medias Dimension
+
+Pas encore implemente :
+- applications media dediees
+- telecommande
+- bibliotheque locale
+- automatisations home-theatre
+
+---
+
 ## server
 
 Usage prevu :
