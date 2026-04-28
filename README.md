@@ -12,10 +12,12 @@ Implemented today:
 - KDE Plasma 6 desktop stack with SDDM, PipeWire, Bluetooth, and theming
 - Dimension Search entry wired to KRunner
 - default Plasma panel with pinned Dimension entries
+- opt-in mDNS/Avahi network foundation with optional Hub advertisement
 - local development Hub and Node services with token-based protection
 - manual Hub pairing approval workflow
 - WireGuard foundation module with a `dimension0` interface, disabled by default
 - Hub-distributed WireGuard peer list fetch and local Node persistence
+- optional Hub auto-discovery for nodes when `hubUrl` is unset
 - helper command `dimension-wg-keygen` for local WireGuard key generation
 - opt-in storage services through Samba, wsdd, and SFTP
 - opt-in remote services through Sunshine and Wake-on-LAN

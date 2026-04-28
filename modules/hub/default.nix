@@ -441,6 +441,17 @@ except KeyboardInterrupt:
   hubScript = pkgs.writeShellScript "dimension-hub-agent" ''
     exec ${pkgs.python3}/bin/python3 ${hubServer}
   '';
+  hubAvahiServiceFile = pkgs.writeText "dimension-hub.service" ''
+    <?xml version="1.0" standalone="no"?>
+    <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+    <service-group>
+      <name replace-wildcards="yes">Dimension Hub on %h</name>
+      <service>
+        <type>_dimension-hub._tcp</type>
+        <port>${toString cfg.port}</port>
+      </service>
+    </service-group>
+  '';
   hubAdminScript = pkgs.writeShellScript "dimension-hub-admin" ''
     set -eu
 
@@ -527,6 +538,15 @@ in
       description = "Port used by the minimal Dimension Hub HTTP server.";
     };
 
+    advertise = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Whether to advertise the Hub over Avahi/mDNS as `_dimension-hub._tcp`
+        on the configured port.
+      '';
+    };
+
     devTokenFile = lib.mkOption {
       type = lib.types.str;
       default = "";
@@ -543,6 +563,9 @@ in
 
   config = lib.mkIf cfg.enable {
     environment.systemPackages = [ hubAdminScript ];
+    environment.etc = lib.mkIf cfg.advertise {
+      "avahi/services/dimension-hub.service".source = hubAvahiServiceFile;
+    };
 
     users.groups.dimension-hub = {};
 
@@ -588,6 +611,26 @@ in
           "AF_INET"
           "AF_INET6"
         ];
+        LockPersonality = true;
+        MemoryDenyWriteExecute = true;
+        SystemCallArchitectures = "native";
+      };
+    };
+
+    systemd.services.dimension-hub-avahi = lib.mkIf cfg.advertise {
+      description = "Dimension hub Avahi advertisement";
+      wantedBy = [ "multi-user.target" ];
+      after = [ "local-fs.target" ];
+
+      serviceConfig = {
+        Type = "oneshot";
+        ExecStart = "${pkgs.coreutils}/bin/test -f /etc/avahi/services/dimension-hub.service";
+        RemainAfterExit = true;
+        NoNewPrivileges = true;
+        PrivateTmp = true;
+        ProtectSystem = "strict";
+        ProtectHome = true;
+        RestrictAddressFamilies = [ "AF_UNIX" ];
         LockPersonality = true;
         MemoryDenyWriteExecute = true;
         SystemCallArchitectures = "native";

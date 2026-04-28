@@ -39,6 +39,7 @@ in
         hub.enable = lib.mkDefault (cfg.edition == "server");
         kde.enable = lib.mkDefault (cfg.edition != "server-headless");
         network.enable = lib.mkDefault true;
+        network.avahi.enable = lib.mkDefault (cfg.edition != "server-headless");
         node.enable = lib.mkDefault true;
         remote.enable = lib.mkDefault true;
         storage.enable = lib.mkDefault true;

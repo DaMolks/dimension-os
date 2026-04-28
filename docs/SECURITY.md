@@ -54,6 +54,7 @@ Current risks:
 - loopback HTTP only, no TLS
 - shared bearer token model only
 - manual approval only, no cryptographic machine identity
+- optional Avahi advertisement reveals Hub presence on the local network
 
 ### Node
 
@@ -67,6 +68,7 @@ Current risks:
 - no local pairing UX
 - no strong identity model
 - no applied WireGuard peer configuration
+- mDNS discovery trusts the first matching Hub advertisement when enabled
 - no retry backoff
 
 ### Storage
@@ -91,8 +93,9 @@ Current risks:
 
 ### Network
 
-- `dimension-network` is still a placeholder
-- no Avahi integration
+- `dimension-network` enables NetworkManager
+- Avahi support is opt-in through `dimension.network.avahi.enable`
+- UDP 5353 is only opened when Avahi support is enabled
 - WireGuard exists as a local interface foundation only
 
 ### WireGuard

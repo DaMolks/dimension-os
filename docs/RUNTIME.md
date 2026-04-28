@@ -14,10 +14,10 @@ Implemented now:
 - `dimension-node` is a real minimal agent
 - `dimension-hub` is a real minimal local HTTP service
 - `dimension-hub` has a manual pairing approval workflow
+- `dimension-network` is a real NetworkManager and Avahi foundation
 - `dimension-storage` is a real opt-in storage module
 - `dimension-remote` is a real opt-in remote module
 - `dimension-wireguard` exists as an opt-in interface foundation
-- `dimension-network` is still a placeholder
 
 Not implemented in the current tree:
 - interactive pairing UX
@@ -49,11 +49,13 @@ Current files:
 - `agent.sh`
 - `id`
 - `identity.json`
+- `discovered-hub-url.txt`
 - `peers.json`
 
 Behavior:
 - `id` is created on first start if missing
 - `identity.json` is created on first start if missing
+- `discovered-hub-url.txt` is written when Hub discovery succeeds
 - `peers.json` is refreshed after successful Hub WireGuard config fetches
 
 ### `/var/log/dimension`
@@ -147,6 +149,7 @@ Status:
 Behavior:
 - runs as system user `dimension-node`
 - creates local identity if missing
+- can auto-discover a Hub over Avahi when `dimension.node.hubDiscovery = true` and `hubUrl` is empty
 - optionally reads a bearer token from `dimension.node.hubTokenFile`
 - posts `identity.json` to `POST /nodes/ping`
 - optionally reads a WireGuard public key from `dimension.node.wgPublicKeyFile`
@@ -159,7 +162,7 @@ Current limitations:
 - no local pairing UX
 - no applied WireGuard peer configuration yet
 - no structured local state beyond small JSON state files
-- no LAN discovery
+- no discovery retry or backoff after startup
 - no backoff
 
 ### `dimension-hub`
@@ -175,6 +178,7 @@ Behavior:
 - binds to `127.0.0.1:8787` by default
 - serves `GET /ping`, `GET /nodes`, `GET /nodes/pending`, `GET /wireguard/peers`, `GET /wireguard/config`, `POST /nodes/ping`, `POST /nodes/approve`, and `POST /nodes/reject`
 - protects pairing admin endpoints with a bearer token and can also protect the other read/write endpoints when `dimension.hub.devTokenFile` is set
+- can advertise `_dimension-hub._tcp` over Avahi when `dimension.hub.advertise = true`
 - registers new nodes as `pending`
 - only exposes approved nodes through the WireGuard views
 - persists registered nodes in `/var/lib/dimension-hub/nodes.json`
@@ -197,16 +201,18 @@ Module:
 - `modules/network/default.nix`
 
 Status:
-- placeholder
+- real minimal foundation
 
 Behavior:
 - enables NetworkManager
 - creates `/etc/dimension`
-- runs a hardened `oneshot` service that executes `true`
+- can enable Avahi with IPv4 mDNS resolution support
+- can publish local user services over Avahi
+- opens UDP 5353 only when Avahi support is enabled
 
 Current limitations:
-- no mDNS discovery
-- no Avahi integration
+- no Dimension-specific LAN trust model
+- no network policy beyond Avahi opt-in
 - no WireGuard
 
 ### `dimension-storage`

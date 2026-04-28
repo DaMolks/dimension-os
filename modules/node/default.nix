@@ -7,12 +7,14 @@ let
 
     state_dir="''${DIMENSION_NODE_STATE_DIR:-/var/lib/dimension/node}"
     log_dir="''${DIMENSION_NODE_LOG_DIR:-/var/log/dimension}"
-    hub_url=${lib.escapeShellArg cfg.hubUrl}
+    configured_hub_url=${lib.escapeShellArg cfg.hubUrl}
+    hub_discovery=${lib.boolToString cfg.hubDiscovery}
     hub_token_file=${lib.escapeShellArg cfg.hubTokenFile}
     wg_public_key_file=${lib.escapeShellArg cfg.wgPublicKeyFile}
     id_file="$state_dir/id"
     identity_file="$state_dir/identity.json"
     payload_file="$state_dir/payload.json"
+    discovered_hub_url_file="$state_dir/discovered-hub-url.txt"
     peers_file="$state_dir/peers.json"
     peers_tmp_file="$state_dir/peers.json.tmp"
     log_file="$log_dir/node.log"
@@ -25,12 +27,6 @@ let
     }
 
     log "starting"
-
-    if [ -n "$hub_url" ]; then
-      log "hub url configured: $hub_url"
-    else
-      log "local mode: no hub url configured"
-    fi
 
     if [ ! -s "$id_file" ]; then
       if [ -r /proc/sys/kernel/random/uuid ]; then
@@ -101,6 +97,51 @@ print(json.dumps(data, indent=2))
       fi
     fi
 
+    effective_hub_url="$configured_hub_url"
+
+    discover_hub() {
+      while IFS= read -r line; do
+        IFS=';' read -r action interface protocol service_name service_type domain target_host address port txt_record <<EOF
+$line
+EOF
+        if [ "$action" != "=" ]; then
+          continue
+        fi
+
+        if [ -z "$address" ] || [ -z "$port" ]; then
+          continue
+        fi
+
+        case "$address" in
+          *:*)
+            effective_hub_url="http://[$address]:$port"
+            ;;
+          *)
+            effective_hub_url="http://$address:$port"
+            ;;
+        esac
+
+        ${pkgs.coreutils}/bin/printf '%s\n' "$effective_hub_url" > "$discovered_hub_url_file"
+        ${pkgs.coreutils}/bin/chmod 0644 "$discovered_hub_url_file"
+        log "discovered hub at $effective_hub_url"
+        return 0
+      done < <(avahi-browse -r -t -p _dimension-hub._tcp 2>/dev/null || true)
+
+      ${pkgs.coreutils}/bin/rm -f "$discovered_hub_url_file"
+      log "hub discovery failed, running local mode"
+      return 1
+    }
+
+    if [ -n "$configured_hub_url" ]; then
+      ${pkgs.coreutils}/bin/rm -f "$discovered_hub_url_file"
+      log "hub url configured: $configured_hub_url"
+    elif [ "$hub_discovery" = "true" ]; then
+      discover_hub
+    else
+      ${pkgs.coreutils}/bin/rm -f "$discovered_hub_url_file"
+      log "local mode: no hub url configured"
+    fi
+
     curl_auth_args=()
     if [ -n "$hub_token" ]; then
       curl_auth_args=(--header "Authorization: Bearer $hub_token")
@@ -124,7 +165,7 @@ print(json.dumps(identity, indent=2))
     }
 
     send_node_ping() {
-      if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' "''${curl_auth_args[@]}" --data-binary "@$payload_file" "$hub_url/nodes/ping" 2>&1 >/dev/null)"; then
+      if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 --request POST --header 'Content-Type: application/json' "''${curl_auth_args[@]}" --data-binary "@$payload_file" "$effective_hub_url/nodes/ping" 2>&1 >/dev/null)"; then
         log "hub node ping succeeded"
       else
         log "hub node ping failed: $curl_error"
@@ -145,7 +186,7 @@ print(len(data))
     }
 
     fetch_wireguard_config() {
-      if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 "''${curl_auth_args[@]}" --output "$peers_tmp_file" "$hub_url/wireguard/config?node_id=$node_id" 2>&1)"; then
+      if curl_error="$(${pkgs.curl}/bin/curl --fail --silent --show-error --max-time 5 "''${curl_auth_args[@]}" --output "$peers_tmp_file" "$effective_hub_url/wireguard/config?node_id=$node_id" 2>&1)"; then
         if peer_count="$(count_wireguard_peers "$peers_tmp_file" 2>&1)"; then
           ${pkgs.coreutils}/bin/chmod 0644 "$peers_tmp_file"
           ${pkgs.coreutils}/bin/mv -f "$peers_tmp_file" "$peers_file"
@@ -163,7 +204,7 @@ print(len(data))
     while true; do
       build_payload
 
-      if [ -n "$hub_url" ]; then
+      if [ -n "$effective_hub_url" ]; then
         send_node_ping
 
         if [ -n "$wg_public_key_file" ] && [ -n "$wg_pubkey" ]; then
@@ -183,6 +224,16 @@ in
       type = lib.types.str;
       default = "";
       description = "Optional Dimension Hub base URL used by the local node agent.";
+    };
+
+    hubDiscovery = lib.mkOption {
+      type = lib.types.bool;
+      default = false;
+      description = ''
+        Whether to auto-discover a Dimension Hub over Avahi/mDNS when `hubUrl`
+        is empty. When discovery succeeds, the discovered URL is persisted in
+        the node state directory and used for the current session.
+      '';
     };
 
     hubTokenFile = lib.mkOption {
@@ -226,6 +277,7 @@ in
       description = "Dimension node agent";
       wantedBy = [ "multi-user.target" ];
       after = [ "systemd-tmpfiles-setup.service" ];
+      path = [ pkgs.avahi ];
 
       serviceConfig = {
         Type = "simple";
