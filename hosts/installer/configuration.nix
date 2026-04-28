@@ -4,8 +4,11 @@ let
   bootSplash = ../../assets/wallpapers/dimension-boot-splash.png;
   grubTheme = pkgs.runCommand "dimension-installer-grub-theme" {} ''
     mkdir -p "$out"
+    chmod 755 "$out"
     cp -r ${pkgs.nixos-grub2-theme}/* "$out/"
+    chmod 755 "$out"
     cp ${bootSplash} "$out/background.png"
+    chmod 644 "$out/background.png"
 
     cat > "$out/theme.txt" <<'EOF'
 title-text: ""
