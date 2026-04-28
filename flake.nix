@@ -43,6 +43,7 @@
         apps = import ./modules/apps;
         base = import ./modules/base;
         desktop = import ./modules/desktop;
+        home-theatre = import ./modules/home-theatre;
         hub = import ./modules/hub;
         kde-config = import ./modules/kde-config;
         network = import ./modules/network;

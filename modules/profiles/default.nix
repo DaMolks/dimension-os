@@ -7,6 +7,7 @@ in
   imports = [
     ../apps
     ../desktop
+    ../home-theatre
     ../hub
     ../kde-config
     ../network
@@ -50,6 +51,13 @@ in
         wireguard.enable = lib.mkDefault false;
       };
     }
+
+    (lib.mkIf (cfg.edition == "home-theatre") {
+      dimension.homeTheatre.enable = true;
+      dimension.apps.enable = false;
+      dimension.desktop.enable = true;
+      dimension.kde.enable = true;
+    })
 
     (lib.mkIf (cfg.edition == "gaming") {
       hardware.opengl.enable = true;
