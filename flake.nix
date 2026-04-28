@@ -49,6 +49,7 @@
         node = import ./modules/node;
         profiles = import ./modules/profiles;
         remote = import ./modules/remote;
+        sddm = import ./modules/sddm;
         services = import ./modules/services;
         storage = import ./modules/storage;
         theme = import ./modules/theme;

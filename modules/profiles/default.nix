@@ -12,6 +12,7 @@ in
     ../network
     ../node
     ../remote
+    ../sddm
     ../storage
     ../theme
     ../wireguard
@@ -43,6 +44,7 @@ in
         network.avahi.enable = lib.mkDefault (cfg.edition != "server-headless");
         node.enable = lib.mkDefault true;
         remote.enable = lib.mkDefault true;
+        sddm.enable = lib.mkDefault (cfg.edition != "server-headless");
         storage.enable = lib.mkDefault true;
         theme.enable = lib.mkDefault (cfg.edition != "server-headless");
         wireguard.enable = lib.mkDefault false;

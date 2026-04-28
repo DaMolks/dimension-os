@@ -2,11 +2,6 @@
 
 let
   cfg = config.dimension.desktop;
-  dimensionSddmTheme = pkgs.sddm-chili-theme.override {
-    themeConfig = {
-      Background = "${../../assets/wallpapers/dimension-default.svg}";
-    };
-  };
 in
 {
   options.dimension.desktop.enable = lib.mkEnableOption "Dimension desktop stack";
@@ -18,7 +13,6 @@ in
 
     services.displayManager.sddm = {
       enable = true;
-      theme = "chili";
       wayland.enable = true;
     };
 
@@ -41,7 +35,6 @@ in
       kdePackages.dolphin
       kdePackages.ark
       kdePackages.spectacle
-      dimensionSddmTheme
     ];
   };
 }
