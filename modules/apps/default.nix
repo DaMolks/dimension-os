@@ -21,10 +21,6 @@ let
     "Dimension Hub"
     "Hub local disponible sur http://127.0.0.1:8787";
 
-  dimensionSettings = mkPlaceholder "dimension-settings"
-    "Dimension Paramètres"
-    "Configuration système — à venir.";
-
   dimensionIcons = pkgs.runCommand "dimension-icons" {} ''
     install -Dm0644 ${../../assets/icons/256/dimension-search.png} \
       $out/share/icons/hicolor/256x256/apps/dimension-search.png
@@ -54,14 +50,25 @@ let
 
 in
 {
-  options.dimension.apps.enable =
-    lib.mkEnableOption "Dimension application entries (.desktop + placeholder scripts)";
+  options.dimension.apps = {
+    enable = lib.mkEnableOption "Dimension application entries (.desktop + scripts)";
+
+    _settingsPackage = lib.mkOption {
+      type = lib.types.package;
+      internal = true;
+      description = "The dimension-settings binary — placeholder until the settings module is enabled.";
+      default = mkPlaceholder "dimension-settings"
+        "Dimension Paramètres"
+        "Configuration système — à venir.";
+      defaultText = lib.literalExpression "dimension-settings placeholder";
+    };
+  };
 
   config = lib.mkIf cfg.enable {
     environment.systemPackages = [
       dimensionSearch
       dimensionHub
-      dimensionSettings
+      cfg._settingsPackage
       dimensionIcons
 
       (mkDesktop {
@@ -88,7 +95,7 @@ in
         name        = "dimension-settings";
         desktopName = "Dimension Paramètres";
         comment     = "Configuration du système Dimension";
-        bin         = "${dimensionSettings}/bin/dimension-settings";
+        bin         = "${cfg._settingsPackage}/bin/dimension-settings";
         icon        = "dimension-settings";
         categories  = "System;Settings";
         keywords    = "paramètres;settings;configuration;dimension";

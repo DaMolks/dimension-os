@@ -7,6 +7,7 @@ in
   imports = [
     ../apps
     ../desktop
+    ../dimension-settings
     ../home-theatre
     ../hub
     ../kde-config
@@ -44,6 +45,9 @@ in
         kde.enable = lib.mkDefault (cfg.edition != "server-headless");
         network.enable = lib.mkDefault true;
         network.avahi.enable = lib.mkDefault (cfg.edition != "server-headless");
+        dimensionSettings.enable = lib.mkDefault (
+          cfg.edition == "desktop" || cfg.edition == "workstation"
+        );
         node.enable = lib.mkDefault true;
         plymouth.enable = lib.mkDefault (cfg.edition != "server-headless");
         remote.enable = lib.mkDefault true;
