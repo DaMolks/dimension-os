@@ -12,6 +12,7 @@ in
     ../kde-config
     ../network
     ../node
+    ../plymouth
     ../remote
     ../sddm
     ../storage
@@ -44,6 +45,7 @@ in
         network.enable = lib.mkDefault true;
         network.avahi.enable = lib.mkDefault (cfg.edition != "server-headless");
         node.enable = lib.mkDefault true;
+        plymouth.enable = lib.mkDefault (cfg.edition != "server-headless");
         remote.enable = lib.mkDefault true;
         sddm.enable = lib.mkDefault (cfg.edition != "server-headless");
         storage.enable = lib.mkDefault true;

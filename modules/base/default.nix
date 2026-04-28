@@ -6,6 +6,8 @@ let
     set -eu
 
     host_id="''${1:-}"
+    generated_wg_public_key=""
+    generated_wg_key_dir=""
 
     if [ "$#" -gt 1 ]; then
       printf 'usage: dimension-install [host-id]\n' >&2
@@ -29,6 +31,14 @@ let
       fi
 
       return 1
+    }
+
+    print_step() {
+      current="$1"
+      total="$2"
+      label="$3"
+
+      printf '\n[step %s/%s] %s\n' "$current" "$total" "$label" >&2
     }
 
     prompt_nonempty() {
@@ -61,28 +71,43 @@ let
 Choose a Dimension edition:
   1. desktop
   2. laptop
-  3. home-theatre
-  4. server
-  5. server-headless
-  6. print-station
-  7. gaming
-  8. workstation
+  3. gaming
+  4. workstation
+  5. print-station
+  6. home-theatre
 EOF
-        printf 'Edition [1-8]: ' >&2
+        printf 'Edition [1-6]: ' >&2
         read -r choice
 
         case "$choice" in
           1) printf 'desktop\n'; return 0 ;;
           2) printf 'laptop\n'; return 0 ;;
-          3) printf 'home-theatre\n'; return 0 ;;
-          4) printf 'server\n'; return 0 ;;
-          5) printf 'server-headless\n'; return 0 ;;
-          6) printf 'print-station\n'; return 0 ;;
-          7) printf 'gaming\n'; return 0 ;;
-          8) printf 'workstation\n'; return 0 ;;
+          3) printf 'gaming\n'; return 0 ;;
+          4) printf 'workstation\n'; return 0 ;;
+          5) printf 'print-station\n'; return 0 ;;
+          6) printf 'home-theatre\n'; return 0 ;;
         esac
 
-        printf 'Invalid choice. Please select a number from 1 to 8.\n' >&2
+        printf 'Invalid choice. Please select a number from 1 to 6.\n' >&2
+      done
+    }
+
+    prompt_yes_no() {
+      prompt="$1"
+      default_answer="''${2:-N}"
+
+      while true; do
+        printf '%s [%s]: ' "$prompt" "$default_answer" >&2
+        read -r answer
+
+        if [ -z "$answer" ]; then
+          answer="$default_answer"
+        fi
+
+        case "$answer" in
+          y|Y|yes|YES) return 0 ;;
+          n|N|no|NO) return 1 ;;
+        esac
       done
     }
 
@@ -112,11 +137,28 @@ EOF
       esac
     }
 
+    generate_wireguard_keys() {
+      host_ref="$1"
+      state_root="''${XDG_STATE_HOME:-$HOME/.local/state}/dimension/install/$host_ref"
+      timestamp="$(${pkgs.coreutils}/bin/date +%Y%m%d-%H%M%S)"
+      generated_wg_key_dir="$state_root/wireguard-$timestamp"
+
+      ${pkgs.coreutils}/bin/mkdir -p "$state_root"
+      ${dimensionWgKeygen}/bin/dimension-wg-keygen "$generated_wg_key_dir" >&2
+
+      generated_wg_public_key="$(${pkgs.coreutils}/bin/cat "$generated_wg_key_dir/wg-public-key")"
+      printf 'WireGuard public key: %s\n' "$generated_wg_public_key" >&2
+    }
+
+    print_step 1 5 'Resolving repository root'
+
     if ! repo_root="$(detect_repo_root)"; then
       printf 'dimension-install must be run from the Dimension repository root,\n' >&2
       printf 'or with DIMENSION_REPO_ROOT pointing to it.\n' >&2
       exit 1
     fi
+
+    print_step 2 5 'Collecting install details'
 
     if [ -z "$host_id" ]; then
       host_id="$(prompt_nonempty 'Host directory name' "")"
@@ -125,6 +167,7 @@ EOF
     host_name="$(prompt_nonempty 'Hostname' "$host_id")"
     main_user="$(prompt_nonempty 'Main local user' 'dimension')"
     edition="$(choose_edition)"
+    install_disk="$(prompt_nonempty 'Install disk (summary only)' '/dev/disk/by-id/CHANGE-ME')"
     state_version="$(prompt_nonempty 'system.stateVersion' '24.05')"
 
     validate_name "$host_id" 'Host directory name'
@@ -132,6 +175,8 @@ EOF
 
     target_dir="$repo_root/hosts/$host_id"
     target_file="$target_dir/configuration.nix"
+
+    print_step 3 5 'Preparing host configuration'
 
     ${pkgs.coreutils}/bin/mkdir -p "$target_dir"
 
@@ -169,7 +214,24 @@ EOF
 }
 EOF
 
-    printf 'Generated %s\n' "$target_file"
+    printf 'Generated %s\n' "$target_file" >&2
+
+    print_step 4 5 'Handling optional WireGuard bootstrap'
+
+    if prompt_yes_no 'Generate WireGuard keys?' 'N'; then
+      generate_wireguard_keys "$host_id"
+    fi
+
+    print_step 5 5 'Install summary'
+    printf 'Hostname: %s\n' "$host_name"
+    printf 'Edition: %s\n' "$edition"
+    printf 'Disk: %s\n' "$install_disk"
+    printf 'Host config: %s\n' "$target_file"
+    if [ -n "$generated_wg_public_key" ]; then
+      printf 'WireGuard public key: %s\n' "$generated_wg_public_key"
+      printf 'WireGuard key directory: %s\n' "$generated_wg_key_dir"
+    fi
+
     printf 'Next steps:\n'
     printf '  1. Run nixos-generate-config in the target system and copy hardware-configuration.nix.\n'
     printf '  2. Add the new host to flake.nix when ready.\n'

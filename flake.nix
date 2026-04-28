@@ -48,6 +48,7 @@
         kde-config = import ./modules/kde-config;
         network = import ./modules/network;
         node = import ./modules/node;
+        plymouth = import ./modules/plymouth;
         profiles = import ./modules/profiles;
         remote = import ./modules/remote;
         sddm = import ./modules/sddm;
