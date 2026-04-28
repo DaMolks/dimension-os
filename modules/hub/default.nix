@@ -14,6 +14,8 @@ import sys
 import threading
 import uuid
 
+VALID_NODE_STATUSES = {"pending", "approved", "rejected"}
+
 state_dir = Path(os.environ.get("DIMENSION_HUB_STATE_DIR", "/var/lib/dimension-hub"))
 log_dir = Path(os.environ.get("DIMENSION_HUB_LOG_DIR", "/var/log/dimension-hub"))
 config_dir = Path(os.environ.get("DIMENSION_HUB_CONFIG_DIR", "/etc/dimension/hub"))
@@ -89,13 +91,28 @@ def current_timestamp():
 def log_value(value):
     return str(value).replace("\n", " ").replace("\r", " ")[:128]
 
-def check_auth(handler):
+def check_auth(handler, require_token=False):
     if dev_token is None:
-        return True
+        return not require_token
     auth = handler.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         return False
     return auth[len("Bearer "):] == dev_token
+
+def normalize_node_status(node):
+    raw_status = node.get("status")
+    if raw_status is None:
+        return "approved"
+
+    if isinstance(raw_status, str):
+        status = raw_status.strip()
+    else:
+        status = ""
+
+    if status in VALID_NODE_STATUSES:
+        return status
+
+    return "rejected"
 
 def read_nodes():
     data = json.loads(nodes_file.read_text(encoding="utf-8"))
@@ -110,6 +127,7 @@ def read_nodes():
             "hostname": str(node.get("hostname", "")).strip(),
             "last_seen": str(node.get("last_seen", "")).strip(),
             "wg_pubkey": str(node.get("wg_pubkey", "")).strip(),
+            "status": normalize_node_status(node),
         })
     return [node for node in nodes if node["node_id"]]
 
@@ -140,6 +158,8 @@ def parse_query_string(path):
 def list_wireguard_peers():
     peers = []
     for node in read_nodes():
+        if node.get("status") != "approved":
+            continue
         if not node.get("wg_pubkey"):
             continue
         peers.append({
@@ -160,6 +180,9 @@ def list_wireguard_config(node_id):
             node_exists = True
             continue
 
+        if node.get("status") != "approved":
+            continue
+
         if not node.get("wg_pubkey"):
             continue
 
@@ -170,6 +193,20 @@ def list_wireguard_config(node_id):
         })
 
     return node_exists, peers
+
+def list_pending_nodes():
+    return [node for node in read_nodes() if node.get("status") == "pending"]
+
+def update_node_status(nodes, node_id, status):
+    for node in nodes:
+        if node.get("node_id") != node_id:
+            continue
+
+        previous_status = node.get("status", "approved")
+        node["status"] = status
+        return previous_status
+
+    return None
 
 class Handler(BaseHTTPRequestHandler):
     def send_text(self, status, body):
@@ -188,6 +225,60 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def read_json_payload(self, endpoint):
+        length = int(self.headers.get("Content-Length", "0"))
+        try:
+            payload = json.loads(self.rfile.read(length).decode("utf-8"))
+        except json.JSONDecodeError:
+            self.send_text(400, "invalid json\n")
+            log(f"POST {endpoint} 400 invalid json")
+            return None
+
+        if not isinstance(payload, dict):
+            self.send_text(400, "invalid json\n")
+            log(f"POST {endpoint} 400 invalid payload")
+            return None
+
+        return payload
+
+    def read_required_node_id(self, payload, endpoint):
+        node_id = payload.get("node_id")
+        if not isinstance(node_id, str) or not node_id.strip():
+            self.send_text(400, "missing node_id\n")
+            log(f"POST {endpoint} 400 missing node_id")
+            return None
+
+        return node_id.strip()
+
+    def handle_node_status_update(self, endpoint, target_status):
+        if not check_auth(self, require_token=True):
+            self.send_text(401, "unauthorized\n")
+            log(f"POST {endpoint} 401 from {self.client_address[0]}")
+            return
+
+        payload = self.read_json_payload(endpoint)
+        if payload is None:
+            return
+
+        node_id = self.read_required_node_id(payload, endpoint)
+        if node_id is None:
+            return
+
+        with nodes_lock:
+            nodes = read_nodes()
+            previous_status = update_node_status(nodes, node_id, target_status)
+            if previous_status is None:
+                self.send_text(404, "node not found\n")
+                log(f"POST {endpoint} 404 node_id={log_value(node_id)}")
+                return
+            write_nodes(nodes)
+
+        self.send_text(200, "ok\n")
+        log(
+            f"node status updated: node_id={log_value(node_id)} "
+            f"from={previous_status} to={target_status}"
+        )
+
     def do_GET(self):
         request_path, _, _ = self.path.partition("?")
 
@@ -205,6 +296,17 @@ class Handler(BaseHTTPRequestHandler):
                 nodes = read_nodes()
             self.send_json(200, nodes)
             log("GET /nodes 200")
+            return
+
+        if request_path == "/nodes/pending":
+            if not check_auth(self, require_token=True):
+                self.send_text(401, "unauthorized\n")
+                log(f"GET /nodes/pending 401 from {self.client_address[0]}")
+                return
+            with nodes_lock:
+                nodes = list_pending_nodes()
+            self.send_json(200, nodes)
+            log(f"GET /nodes/pending 200 count={len(nodes)}")
             return
 
         if request_path == "/wireguard/peers":
@@ -253,6 +355,14 @@ class Handler(BaseHTTPRequestHandler):
         log(f"GET {self.path} 404 from {self.client_address[0]}")
 
     def do_POST(self):
+        if self.path == "/nodes/approve":
+            self.handle_node_status_update("/nodes/approve", "approved")
+            return
+
+        if self.path == "/nodes/reject":
+            self.handle_node_status_update("/nodes/reject", "rejected")
+            return
+
         if self.path != "/nodes/ping":
             self.send_response(404)
             self.send_header("Content-Length", "0")
@@ -265,26 +375,14 @@ class Handler(BaseHTTPRequestHandler):
             log(f"POST /nodes/ping 401 from {self.client_address[0]}")
             return
 
-        length = int(self.headers.get("Content-Length", "0"))
-        try:
-            payload = json.loads(self.rfile.read(length).decode("utf-8"))
-        except json.JSONDecodeError:
-            self.send_text(400, "invalid json\n")
-            log("POST /nodes/ping 400 invalid json")
+        payload = self.read_json_payload("/nodes/ping")
+        if payload is None:
             return
 
-        if not isinstance(payload, dict):
-            self.send_text(400, "invalid json\n")
-            log("POST /nodes/ping 400 invalid payload")
+        node_id = self.read_required_node_id(payload, "/nodes/ping")
+        if node_id is None:
             return
 
-        node_id = payload.get("node_id")
-        if not isinstance(node_id, str) or not node_id.strip():
-            self.send_text(400, "missing node_id\n")
-            log("POST /nodes/ping 400 missing node_id")
-            return
-
-        node_id = node_id.strip()
         hostname = payload.get("hostname", "")
         if not isinstance(hostname, str):
             hostname = ""
@@ -298,12 +396,14 @@ class Handler(BaseHTTPRequestHandler):
         with nodes_lock:
             nodes = read_nodes()
             updated = False
+            node_status = "pending"
 
             for node in nodes:
                 if node.get("node_id") == node_id:
                     node["hostname"] = hostname
                     node["last_seen"] = last_seen
                     node["wg_pubkey"] = wg_pubkey
+                    node_status = node.get("status", "approved")
                     updated = True
                     break
 
@@ -313,13 +413,15 @@ class Handler(BaseHTTPRequestHandler):
                     "hostname": hostname,
                     "last_seen": last_seen,
                     "wg_pubkey": wg_pubkey,
+                    "status": "pending",
                 })
 
             write_nodes(nodes)
 
         log(
             f"node ping stored: node_id={log_value(node_id)} "
-            f"hostname={log_value(hostname)} wg_pubkey={'yes' if wg_pubkey else 'no'}"
+            f"hostname={log_value(hostname)} wg_pubkey={'yes' if wg_pubkey else 'no'} "
+            f"status={node_status}"
         )
         self.send_text(200, "ok\n")
 
@@ -338,6 +440,75 @@ except KeyboardInterrupt:
   '';
   hubScript = pkgs.writeShellScript "dimension-hub-agent" ''
     exec ${pkgs.python3}/bin/python3 ${hubServer}
+  '';
+  hubAdminScript = pkgs.writeShellScript "dimension-hub-admin" ''
+    set -eu
+
+    hub_url="''${DIMENSION_HUB_URL:-http://127.0.0.1:8787}"
+    token_file="''${DIMENSION_HUB_DEV_TOKEN_FILE:-/etc/dimension/secrets/hub-dev-token}"
+
+    if [ ! -s "$token_file" ]; then
+      ${pkgs.coreutils}/bin/printf 'dimension-hub-admin: token file not found or empty: %s\n' "$token_file" >&2
+      exit 1
+    fi
+
+    token="$(${pkgs.coreutils}/bin/cat "$token_file")"
+    auth_args=(--header "Authorization: Bearer $token")
+
+    usage() {
+      ${pkgs.coreutils}/bin/cat <<'EOF'
+Usage:
+  dimension-hub-admin list-pending
+  dimension-hub-admin approve <node_id>
+  dimension-hub-admin reject <node_id>
+EOF
+    }
+
+    encode_payload() {
+      ${pkgs.python3}/bin/python3 -c "
+import json
+import sys
+
+print(json.dumps({'node_id': sys.argv[1]}))
+" "$1"
+    }
+
+    if [ "$#" -lt 1 ]; then
+      usage >&2
+      exit 1
+    fi
+
+    command="$1"
+
+    case "$command" in
+      list-pending)
+        if [ "$#" -ne 1 ]; then
+          usage >&2
+          exit 1
+        fi
+
+        exec ${pkgs.curl}/bin/curl --fail --silent --show-error "''${auth_args[@]}" "$hub_url/nodes/pending"
+        ;;
+      approve|reject)
+        if [ "$#" -ne 2 ] || [ -z "$2" ]; then
+          usage >&2
+          exit 1
+        fi
+
+        payload="$(encode_payload "$2")"
+        endpoint="/nodes/$command"
+        exec ${pkgs.curl}/bin/curl --fail --silent --show-error \
+          --request POST \
+          --header 'Content-Type: application/json' \
+          "''${auth_args[@]}" \
+          --data-binary "$payload" \
+          "$hub_url$endpoint"
+        ;;
+      *)
+        usage >&2
+        exit 1
+        ;;
+    esac
   '';
 in
 {
@@ -362,7 +533,8 @@ in
       description = ''
         Path to a file containing a bearer token used to authenticate requests
         to protected Hub API endpoints (POST /nodes/ping, GET /nodes).
-        This also protects GET /wireguard/peers and GET /wireguard/config.
+        This also protects GET /wireguard/peers, GET /wireguard/config,
+        GET /nodes/pending, POST /nodes/approve, and POST /nodes/reject.
         When empty, the Hub runs in unauthenticated local dev mode and logs a
         warning. The token must never be stored in Git.
       '';
@@ -370,6 +542,8 @@ in
   };
 
   config = lib.mkIf cfg.enable {
+    environment.systemPackages = [ hubAdminScript ];
+
     users.groups.dimension-hub = {};
 
     users.users.dimension-hub = {

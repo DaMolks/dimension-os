@@ -87,6 +87,19 @@ TOKEN="$(sudo cat /etc/dimension/secrets/hub-dev-token)"
 curl --header "Authorization: Bearer $TOKEN" http://127.0.0.1:8787/nodes
 ```
 
+Lister les nodes en attente d'approbation :
+
+```sh
+dimension-hub-admin list-pending
+```
+
+Approuver ou rejeter un node :
+
+```sh
+dimension-hub-admin approve <node_id>
+dimension-hub-admin reject <node_id>
+```
+
 Verifier que le repertoire secrets existe :
 
 ```sh
@@ -128,7 +141,7 @@ Ce test n'est pas expose sur le LAN :
 
 Ce test n'est pas securise pour un usage reseau :
 - le token local est un secret partage simple, pas une authentification forte
-- pas de pairing
+- pairing manuel seulement
 - pas de TLS
 - pas de WireGuard
 - pas de gestion de droits
@@ -138,7 +151,9 @@ Ce test est uniquement une etape de developpement locale.
 Il valide que :
 - le Hub peut repondre a `/ping`
 - le Node peut poster son identite au Hub via `POST /nodes/ping`
+- un nouveau Node apparait en `pending` jusqu'a approbation manuelle
 - le Hub peut retourner la liste des nodes via `GET /nodes`
+- le Hub peut approuver ou rejeter un node via `dimension-hub-admin`
 - Hub et Node s'authentifient mutuellement par token local
 - les deux services journalisent leur activite
 

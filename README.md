@@ -13,6 +13,7 @@ Implemented today:
 - Dimension Search entry wired to KRunner
 - default Plasma panel with pinned Dimension entries
 - local development Hub and Node services with token-based protection
+- manual Hub pairing approval workflow
 - WireGuard foundation module with a `dimension0` interface, disabled by default
 - Hub-distributed WireGuard peer list fetch and local Node persistence
 - helper command `dimension-wg-keygen` for local WireGuard key generation
@@ -24,7 +25,7 @@ Not implemented yet:
 - production-grade Hub and Node protocol
 - Hub-managed WireGuard interface application
 - LAN-safe Hub exposure
-- pairing approval workflow
+- interactive pairing UX and stronger machine identity
 - automatic shared storage mounting across machines
 - native Dimension Settings app, widgets, and custom shell
 - full installer UX from ISO

@@ -13,13 +13,14 @@ this document must be updated.
 Implemented now:
 - `dimension-node` is a real minimal agent
 - `dimension-hub` is a real minimal local HTTP service
+- `dimension-hub` has a manual pairing approval workflow
 - `dimension-storage` is a real opt-in storage module
 - `dimension-remote` is a real opt-in remote module
 - `dimension-wireguard` exists as an opt-in interface foundation
 - `dimension-network` is still a placeholder
 
 Not implemented in the current tree:
-- pairing approval workflow
+- interactive pairing UX
 - LAN-safe Hub exposure
 - automatic storage mounting between machines
 
@@ -77,7 +78,7 @@ Current files:
 Behavior:
 - `id` is created on first start if missing
 - `identity.json` is created on first start if missing
-- `nodes.json` stores the Node registry
+- `nodes.json` stores the Node registry and approval status
 
 ### `/var/log/dimension-hub`
 
@@ -155,7 +156,7 @@ Behavior:
 - loops forever with a fixed 60 second delay
 
 Current limitations:
-- no pairing
+- no local pairing UX
 - no applied WireGuard peer configuration yet
 - no structured local state beyond small JSON state files
 - no LAN discovery
@@ -172,9 +173,12 @@ Status:
 Behavior:
 - runs as system user `dimension-hub`
 - binds to `127.0.0.1:8787` by default
-- serves `GET /ping`, `GET /nodes`, `GET /wireguard/peers`, `GET /wireguard/config`, and `POST /nodes/ping`
-- optionally protects `GET /nodes`, `GET /wireguard/peers`, `GET /wireguard/config`, and `POST /nodes/ping` with a bearer token
+- serves `GET /ping`, `GET /nodes`, `GET /nodes/pending`, `GET /wireguard/peers`, `GET /wireguard/config`, `POST /nodes/ping`, `POST /nodes/approve`, and `POST /nodes/reject`
+- protects pairing admin endpoints with a bearer token and can also protect the other read/write endpoints when `dimension.hub.devTokenFile` is set
+- registers new nodes as `pending`
+- only exposes approved nodes through the WireGuard views
 - persists registered nodes in `/var/lib/dimension-hub/nodes.json`
+- installs a local `dimension-hub-admin` CLI for listing and approving pending nodes
 - logs to journald and `/var/log/dimension-hub/hub.log`
 
 Current limitations:
@@ -182,7 +186,7 @@ Current limitations:
 - no SQLite
 - no paging
 - no delete endpoint
-- no pairing
+- manual approval only, no end-user pairing UX
 - no LAN-safe exposure
 - no TLS
 - no direct WireGuard interface application
@@ -242,7 +246,7 @@ Behavior:
 Current limitations:
 - no peer application to `dimension0`
 - no peer endpoint or address distribution
-- no approval-aware peer lifecycle
+- no automatic interface reconciliation after approval
 - no automatic host defaults
 
 ### `dimension-remote`

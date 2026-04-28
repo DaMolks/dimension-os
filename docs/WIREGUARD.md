@@ -13,12 +13,12 @@ The repository ships an opt-in WireGuard module:
 This is a local machine foundation only.
 The current Hub / Node contract also supports a minimal public-key flow:
 - `dimension-node` can send `wg_pubkey` in `POST /nodes/ping`
-- `dimension-hub` stores that key in `nodes.json`
-- `GET /wireguard/peers` exposes the known public keys back as a read-only view
-- `GET /wireguard/config?node_id=...` returns the other known peers for one node
+- `dimension-hub` stores that key in `nodes.json` with a pairing status
+- `GET /wireguard/peers` exposes approved public keys back as a read-only view
+- `GET /wireguard/config?node_id=...` returns the other approved peers for one node
 - `dimension-node` persists that response to `/var/lib/dimension/node/peers.json`
 
-Hub-driven peer list distribution now exists, but peer application is not implemented yet.
+Hub-driven peer list distribution now exists, gated by manual Hub approval, but peer application is not implemented yet.
 
 ## Enable on a Host
 
@@ -77,7 +77,7 @@ The helper:
 
 - peer application to the live `dimension0` interface
 - peer endpoint and address distribution
-- Hub-managed approval workflow
+- end-user pairing UX around the Hub approval flow
 - key rotation workflow
 - automatic host enrollment
 - tests covering multi-machine VPN behavior

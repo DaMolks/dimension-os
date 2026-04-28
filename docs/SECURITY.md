@@ -53,8 +53,7 @@ intend to build later.
 Current risks:
 - loopback HTTP only, no TLS
 - shared bearer token model only
-- no pairing
-- no cryptographic machine identity
+- manual approval only, no cryptographic machine identity
 
 ### Node
 
@@ -65,7 +64,7 @@ Current risks:
 - `/var/log/dimension`
 
 Current risks:
-- no pairing
+- no local pairing UX
 - no strong identity model
 - no applied WireGuard peer configuration
 - no retry backoff
@@ -106,7 +105,7 @@ Current risks:
 
 Current risks:
 - no automated key lifecycle
-- no peer approval workflow
+- approval exists only at the Hub registry layer
 - no applied interface reconciliation from Hub-distributed peer data
 
 ---
@@ -149,6 +148,6 @@ Before exposing any Dimension service beyond loopback:
 ## Immediate Security Priorities
 
 - document peer lifecycle
-- define pairing and approval rules
+- document approval and rejection lifecycle
 - move away from a shared local dev token model for multi-machine use
 - add test coverage for exposed services and opt-in firewall paths

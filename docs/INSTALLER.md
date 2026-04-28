@@ -34,7 +34,7 @@ Ce script :
 Limites actuelles :
 - pas de partitionnement
 - pas de detection Hub
-- pas de pairing
+- pas de pairing guide
 - pas de creation automatique de `hardware-configuration.nix`
 - pas d'ajout automatique du host dans `flake.nix`
 
@@ -102,7 +102,7 @@ proposer une association.
 
 Si aucun Hub n'est disponible, l'installation continue en standalone.
 
-A ce stade, le Hub, le pairing et la detection reseau ne sont pas implementes.
+A ce stade, dans l'installateur, la detection Hub et le pairing guide ne sont pas implementes.
 
 ### 6. Options complementaires
 

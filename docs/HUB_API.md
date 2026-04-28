@@ -53,6 +53,10 @@ Authorization: Bearer <token>
 
 Le token n'est jamais loggue. Il n'est jamais stocke dans Git.
 
+Les endpoints d'administration du pairing (`GET /nodes/pending`,
+`POST /nodes/approve`, `POST /nodes/reject`) exigent qu'un token soit
+configure. Sans token configure cote Hub, ils retournent `401`.
+
 ### Generer un token de developpement local
 
 ```sh
@@ -103,6 +107,10 @@ Cet endpoint est **protege** : requiert `Authorization: Bearer <token>` si
 Le node poste son identity.json. Le Hub extrait `node_id`, `hostname` et
 optionnellement `wg_pubkey`, puis stocke ou actualise l'entree dans
 `nodes.json`.
+
+Si le `node_id` est nouveau, le Hub cree une entree avec `status = "pending"`.
+Si le `node_id` existe deja, le Hub met a jour `hostname`, `last_seen` et
+`wg_pubkey`, mais conserve le `status` deja connu.
 
 **Corps attendu (JSON) :**
 
@@ -205,7 +213,8 @@ Content-Type: application/json; charset=utf-8
     "node_id": "550e8400-e29b-41d4-a716-446655440000",
     "hostname": "my-machine",
     "last_seen": "2026-04-26T12:00:00+02:00",
-    "wg_pubkey": "base64-wireguard-public-key"
+    "wg_pubkey": "base64-wireguard-public-key",
+    "status": "approved"
   }
 ]
 ```
@@ -224,12 +233,47 @@ Si aucun node n'est enregistre, la reponse est un tableau vide :
 | `hostname`  | string | Nom d'hote (vide si non fourni par le node)    |
 | `last_seen` | string | Horodatage ISO 8601 du dernier ping recu       |
 | `wg_pubkey` | string | Cle publique WireGuard connue du Hub           |
+| `status`    | string | Etat de pairing : `pending`, `approved`, `rejected` |
 
 **Reponses erreur :**
 
 | Code | Corps          | Cause                                       |
 |------|----------------|---------------------------------------------|
 | 401  | `unauthorized` | Token absent ou incorrect (mode avec token) |
+
+---
+
+### GET /nodes/pending
+
+Retourne la liste des nodes actuellement en attente d'approbation.
+
+Cet endpoint est **protege** et **exige un token configure cote Hub**.
+
+**Requete :**
+
+```sh
+curl --header 'Authorization: Bearer <token>' http://127.0.0.1:8787/nodes/pending
+```
+
+**Reponse succes :**
+
+```json
+[
+  {
+    "node_id": "550e8400-e29b-41d4-a716-446655440000",
+    "hostname": "my-machine",
+    "last_seen": "2026-04-26T12:00:00+02:00",
+    "wg_pubkey": "base64-wireguard-public-key",
+    "status": "pending"
+  }
+]
+```
+
+**Reponses erreur :**
+
+| Code | Corps          | Cause                                               |
+|------|----------------|-----------------------------------------------------|
+| 401  | `unauthorized` | Token absent ou incorrect, ou aucun token configure |
 
 ---
 
@@ -240,7 +284,8 @@ Retourne la vue WireGuard minimale du registre local.
 Cet endpoint est **protege** : requiert `Authorization: Bearer <token>` si
 `devTokenFile` est configure.
 
-Seuls les nodes ayant un `wg_pubkey` non vide apparaissent dans cette reponse.
+Seuls les nodes **approuves** ayant un `wg_pubkey` non vide apparaissent dans
+cette reponse.
 
 **Requete (mode avec token) :**
 
@@ -283,8 +328,9 @@ Cet endpoint est **protege** : requiert `Authorization: Bearer <token>` si
 Le `node_id` demandeur doit deja exister dans `nodes.json`, sinon le Hub
 retourne `404`.
 
-Seuls les **autres** nodes ayant un `wg_pubkey` non vide apparaissent dans la
-reponse. Le node demandeur n'est jamais inclus dans sa propre liste.
+Seuls les **autres** nodes **approuves** ayant un `wg_pubkey` non vide
+apparaissent dans la reponse. Le node demandeur n'est jamais inclus dans sa
+propre liste.
 
 **Requete (mode avec token) :**
 
@@ -323,13 +369,101 @@ future etape d'application sur l'interface WireGuard.
 
 ---
 
+### POST /nodes/approve
+
+Approuve manuellement un node en attente ou deja connu.
+
+Cet endpoint est **protege** et **exige un token configure cote Hub**.
+
+**Corps attendu (JSON) :**
+
+```json
+{
+  "node_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+**Requete :**
+
+```sh
+curl --request POST \
+     --header 'Content-Type: application/json' \
+     --header 'Authorization: Bearer <token>' \
+     --data '{"node_id":"550e8400-e29b-41d4-a716-446655440000"}' \
+     http://127.0.0.1:8787/nodes/approve
+```
+
+**Reponse succes :**
+
+```
+HTTP/1.1 200 OK
+Content-Type: text/plain; charset=utf-8
+
+ok
+```
+
+**Reponses erreur :**
+
+| Code | Corps            | Cause                                               |
+|------|------------------|-----------------------------------------------------|
+| 401  | `unauthorized`   | Token absent ou incorrect, ou aucun token configure |
+| 400  | `invalid json`   | Corps non parseable comme JSON                      |
+| 400  | `missing node_id`| Champ `node_id` absent ou vide                      |
+| 404  | `node not found` | `node_id` inconnu dans `nodes.json`                 |
+
+---
+
+### POST /nodes/reject
+
+Rejette manuellement un node en attente ou deja connu.
+
+Cet endpoint est **protege** et **exige un token configure cote Hub**.
+
+**Corps attendu (JSON) :**
+
+```json
+{
+  "node_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+**Requete :**
+
+```sh
+curl --request POST \
+     --header 'Content-Type: application/json' \
+     --header 'Authorization: Bearer <token>' \
+     --data '{"node_id":"550e8400-e29b-41d4-a716-446655440000"}' \
+     http://127.0.0.1:8787/nodes/reject
+```
+
+**Reponse succes :**
+
+```
+HTTP/1.1 200 OK
+Content-Type: text/plain; charset=utf-8
+
+ok
+```
+
+**Reponses erreur :**
+
+| Code | Corps            | Cause                                               |
+|------|------------------|-----------------------------------------------------|
+| 401  | `unauthorized`   | Token absent ou incorrect, ou aucun token configure |
+| 400  | `invalid json`   | Corps non parseable comme JSON                      |
+| 400  | `missing node_id`| Champ `node_id` absent ou vide                      |
+| 404  | `node not found` | `node_id` inconnu dans `nodes.json`                 |
+
+---
+
 ## Fichiers d'etat du Hub
 
 | Fichier                                 | Contenu                              |
 |-----------------------------------------|--------------------------------------|
 | `/var/lib/dimension-hub/id`             | UUID du Hub (genere a la premiere activation) |
 | `/var/lib/dimension-hub/identity.json`  | Identite du Hub (hub_id, hostname, created_at, version) |
-| `/var/lib/dimension-hub/nodes.json`     | Registre local des nodes connus      |
+| `/var/lib/dimension-hub/nodes.json`     | Registre local des nodes connus et de leur statut |
 | `/var/log/dimension-hub/hub.log`        | Log du Hub                           |
 
 ---
@@ -337,8 +471,9 @@ future etape d'application sur l'interface WireGuard.
 ## Comportement du registre nodes.json
 
 Lors d'un `POST /nodes/ping` :
-- Si `node_id` est inconnu : un nouvel entree est ajoutee.
-- Si `node_id` est deja connu : `hostname`, `last_seen` et `wg_pubkey` sont mis a jour.
+- Si `node_id` est inconnu : un nouvel entree est ajoutee avec `status = "pending"`.
+- Si `node_id` est deja connu : `hostname`, `last_seen` et `wg_pubkey` sont mis a jour, mais `status` est conserve.
+- Si une ancienne entree ne contient pas `status`, le Hub la traite comme `approved` pour compatibilite.
 - Les acces au registre sont proteges par un verrou thread-safe.
 
 ---
@@ -350,11 +485,11 @@ Cette API est une API de developpement local minimal.
 - API locale uniquement : le Hub ecoute sur `127.0.0.1` par defaut.
 - Authentification optionnelle par token local : sans `devTokenFile`, toute
   requete est acceptee sans verification d'identite.
-- Le token est un secret partagé simple, pas une authentification forte.
-- Aucun pairing : n'importe quel client connaissant le token peut s'enregistrer.
+- Le token est un secret partage simple, pas une authentification forte.
+- Pairing manuel uniquement : les nouveaux nodes restent `pending` jusqu'a une approbation explicite.
 - Aucun TLS : les communications sont en clair (acceptable sur loopback uniquement).
 - Le Hub distribue maintenant une liste JSON de peers, mais ne configure encore aucun VPN.
-- `GET /wireguard/peers` et `GET /wireguard/config` exposent seulement des vues lecture des cles publiques connues.
+- `GET /wireguard/peers` et `GET /wireguard/config` exposent seulement des vues lecture des cles publiques des nodes approuves.
 - Pas de suppression de node : aucun endpoint pour retirer un node du registre.
 - Pas de validation avancee : seul `node_id` est verifie (presence et type).
 - Pas de pagination : `GET /nodes` retourne tout le registre d'un coup.
@@ -371,9 +506,12 @@ Sans `devTokenFile` configure :
 - Toute requete locale est acceptee sans verification d'identite.
 - Ce mode ne doit etre utilise que sur `127.0.0.1` en environnement de
   developpement local isole.
+- Les endpoints d'administration du pairing ne sont pas utilisables et
+  retournent `401`.
 
 Avec `devTokenFile` configure :
 - Les endpoints proteges (`POST /nodes/ping`, `GET /nodes`, `GET /wireguard/peers`, `GET /wireguard/config`) exigent un token.
+- Les endpoints d'administration du pairing (`GET /nodes/pending`, `POST /nodes/approve`, `POST /nodes/reject`) exigent un token valide et un token configure cote Hub.
 - Le token n'est jamais loggue.
 - Le token ne doit jamais etre stocke dans Git.
 - Ce mode reste insuffisant pour une exposition LAN.
