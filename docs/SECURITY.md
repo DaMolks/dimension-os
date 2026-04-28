@@ -76,9 +76,11 @@ Current risks:
 - Samba and wsdd are opt-in
 - SFTP is opt-in
 - SMB ports are closed unless `dimension.storage.samba.openFirewall = true`
+- guest SMB auto-mount is opt-in through `dimension.storage.autoMount.enable`
 
 Current risks:
 - no cross-machine trust model
+- guest SMB auto-mount has no per-machine credentials yet
 - no approval-aware share policy
 
 ### Remote

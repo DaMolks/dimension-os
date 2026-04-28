@@ -19,7 +19,7 @@ Implemented today:
 - Hub-distributed WireGuard peer list fetch and local Node persistence
 - optional Hub auto-discovery for nodes when `hubUrl` is unset
 - helper command `dimension-wg-keygen` for local WireGuard key generation
-- opt-in storage services through Samba, wsdd, and SFTP
+- opt-in storage services through Samba, wsdd, SFTP, and guest SMB auto-mount
 - opt-in remote services through Sunshine and Wake-on-LAN
 - minimal interactive `dimension-install` helper for generating new host configs
 
@@ -28,7 +28,7 @@ Not implemented yet:
 - Hub-managed WireGuard interface application
 - LAN-safe Hub exposure
 - interactive pairing UX and stronger machine identity
-- automatic shared storage mounting across machines
+- discovery-aware and credentialed shared storage mounting across machines
 - native Dimension Settings app, widgets, and custom shell
 - full installer UX from ISO
 

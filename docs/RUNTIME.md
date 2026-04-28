@@ -16,13 +16,14 @@ Implemented now:
 - `dimension-hub` has a manual pairing approval workflow
 - `dimension-network` is a real NetworkManager and Avahi foundation
 - `dimension-storage` is a real opt-in storage module
+- `dimension-storage` can auto-mount a guest SMB share from a remote Hub
 - `dimension-remote` is a real opt-in remote module
 - `dimension-wireguard` exists as an opt-in interface foundation
 
 Not implemented in the current tree:
 - interactive pairing UX
 - LAN-safe Hub exposure
-- automatic storage mounting between machines
+- discovery-aware and credentialed storage mounting between machines
 
 ---
 
@@ -122,6 +123,15 @@ Purpose:
 Current state:
 - created by the storage module
 - exported through Samba when `dimension.storage.samba.enable = true`
+
+### `/mnt/dimension-hub`
+
+Purpose:
+- default lazy mount point for a remote Hub SMB share
+
+Current state:
+- created when `dimension.storage.autoMount.enable = true`
+- used as the default `dimension.storage.autoMount.mountPoint`
 
 ### WireGuard private key path
 
@@ -228,9 +238,11 @@ Behavior:
 - creates `/mnt/dimension`
 - can enable Samba with wsdd
 - can enable SFTP through OpenSSH
+- can lazily auto-mount `//<hub>/<share>` to `/mnt/dimension-hub` through systemd automount
 
 Current limitations:
-- no automatic mount strategy
+- no discovery-aware mount wiring yet
+- guest access only, no credential file support
 - no approval-aware sharing
 - no machine discovery integration
 

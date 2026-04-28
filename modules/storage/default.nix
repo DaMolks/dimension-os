@@ -38,10 +38,46 @@ in
     sftp = {
       enable = lib.mkEnableOption "SFTP access to Dimension storage via OpenSSH";
     };
+
+    autoMount = {
+      enable = lib.mkOption {
+        type = lib.types.bool;
+        default = false;
+        description = "Automatically mount a remote Dimension Hub SMB share on this machine.";
+      };
+
+      hubHost = lib.mkOption {
+        type = lib.types.str;
+        default = "";
+        description = ''
+          Hostname or IP address of the Hub exporting the SMB share, for example
+          `dimension-main` or a discovered mDNS name.
+        '';
+      };
+
+      shareName = lib.mkOption {
+        type = lib.types.str;
+        default = "dimension";
+        description = "SMB share name exported by the remote Hub.";
+      };
+
+      mountPoint = lib.mkOption {
+        type = lib.types.str;
+        default = "/mnt/dimension-hub";
+        description = "Local mount point used for the remote Hub SMB share.";
+      };
+    };
   };
 
   config = lib.mkIf cfg.enable (lib.mkMerge [
     {
+      assertions = [
+        {
+          assertion = (!cfg.autoMount.enable) || (cfg.autoMount.hubHost != "");
+          message = "dimension.storage.autoMount.hubHost must be set when auto-mount is enabled.";
+        }
+      ];
+
       systemd.tmpfiles.rules = [
         "d /etc/dimension/storage 0755 root root -"
         "d ${cfg.path} 0775 root users -"
@@ -88,6 +124,33 @@ in
           Subsystem sftp ${pkgs.openssh}/libexec/sftp-server
         '';
       };
+    })
+
+    (lib.mkIf cfg.autoMount.enable {
+      environment.systemPackages = [ pkgs.cifs-utils ];
+
+      systemd.tmpfiles.rules = [
+        "d ${cfg.autoMount.mountPoint} 0775 root users -"
+      ];
+
+      systemd.mounts = [
+        {
+          what = "//${cfg.autoMount.hubHost}/${cfg.autoMount.shareName}";
+          where = cfg.autoMount.mountPoint;
+          type = "cifs";
+          options = "guest,uid=1000,gid=100,iocharset=utf8,vers=3.0";
+          wantedBy = [ "multi-user.target" ];
+          after = [ "network-online.target" ];
+          requires = [ "network-online.target" ];
+        }
+      ];
+
+      systemd.automounts = [
+        {
+          where = cfg.autoMount.mountPoint;
+          wantedBy = [ "multi-user.target" ];
+        }
+      ];
     })
   ]);
 }
