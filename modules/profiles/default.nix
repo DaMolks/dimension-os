@@ -54,8 +54,17 @@ in
     (lib.mkIf (cfg.edition == "gaming") {
       hardware.opengl.enable = true;
       hardware.opengl.driSupport32Bit = true;
+      hardware.xone.enable = true;
+      powerManagement.cpuFreqGovernor = "performance";
       programs.steam.enable = true;
+      programs.steam.gamescopeSession.enable = true;
       programs.gamemode.enable = true;
+      services.udev.packages = [ pkgs.game-devices-udev-rules ];
+
+      environment.systemPackages = with pkgs; [
+        gamescope
+        mangohud
+      ];
 
       dimension.remote.sunshine.enable = lib.mkDefault true;
     })
@@ -66,23 +75,61 @@ in
         gimp
         inkscape
         vscode
+        git
+        htop
+        tmux
+        neovim
+        ripgrep
+        fd
+        jq
       ];
 
+      fonts.packages = with pkgs; [
+        jetbrains-mono
+        nerd-fonts.jetbrains-mono
+        nerd-fonts.symbols-only
+      ];
+
+      users.users.${config.dimension.mainUser}.extraGroups = lib.mkAfter [ "docker" ];
+
+      virtualisation.docker.enable = true;
+      services.flatpak.enable = true;
       services.printing.enable = true;
+      xdg.portal.enable = true;
     })
 
     (lib.mkIf (cfg.edition == "print-station") {
+      environment.systemPackages = with pkgs; [
+        cups-filters
+        ghostscript
+      ];
+
+      services.avahi.enable = true;
+      services.avahi.nssmdns4 = true;
       services.printing = {
         enable = true;
-        drivers = [ pkgs.gutenprint ];
+        drivers = with pkgs; [
+          gutenprint
+          hplip
+        ];
       };
 
       dimension.storage.samba.enable = lib.mkDefault true;
     })
 
     (lib.mkIf (cfg.edition == "laptop") {
-      services.tlp.enable = true;
+      hardware.bluetooth.enable = true;
+      hardware.bluetooth.powerOnBoot = true;
       services.fprintd.enable = true;
+      services.auto-cpufreq.enable = true;
+      services.geoclue2.enable = true;
+      services.libinput.enable = true;
+      services.libinput.touchpad.naturalScrolling = true;
+      services.libinput.touchpad.tapping = true;
+      services.localtimed.enable = true;
+      services.power-profiles-daemon.enable = lib.mkForce false;
+      services.thermald.enable = true;
+      services.tlp.enable = lib.mkForce false;
       hardware.sensor.iio.enable = true;
     })
   ];
