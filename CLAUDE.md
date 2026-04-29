@@ -1,100 +1,75 @@
-# CLAUDE.md
+# Claude / Agent Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file is the short operational guide for agents working in this repo.
 
-## What this is
+## Environment
 
-Dimension OS is a NixOS flake for a KDE Plasma 6 multi-machine personal operating system. Development happens on Windows; all Nix commands must run from WSL2 at the path `/mnt/e/Projets/dimension-os`.
+Development happens on Windows. Nix runs through WSL2.
 
-## Validation
+Repo path:
+
+```text
+E:\Projets\dimension-os
+/mnt/e/Projets/dimension-os
+```
+
+Use this Nix binary in WSL:
 
 ```sh
-# From WSL2 — validates flake evaluation without building
-nix flake check --no-build
-
-# Build a specific host
-nix build .#nixosConfigurations.desktop-test.config.system.build.toplevel
-
-# Build the installer ISO
-nix build .#nixosConfigurations.installer.config.system.build.isoImage
+/nix/var/nix/profiles/default/bin/nix
 ```
 
-Secrets (tokens, WireGuard private keys) must **never** be committed to Git. They live in `/etc/dimension/secrets/` on the target machine, outside the flake.
+## Rules
 
-## Module system
+- Do not commit secrets.
+- Do not commit ISO artifacts unless the user explicitly asks for binary release artifacts in Git.
+- Treat `docs/legacy/` as archive-only.
+- Keep current docs in `docs/*.md`.
+- New host configs go in `hosts/<name>/configuration.nix`; flake host discovery is automatic.
+- Prefer small, validated changes. Run `nix flake check --no-build` after Nix edits.
 
-All NixOS modules live in `modules/` and are re-exported via `flake.nix` as `nixosModules`. Every module exposes its options under `config.dimension.*`.
+## Validation Commands
 
-**`modules/profiles/`** is the main composition layer. It reads `dimension.edition` and sets sensible defaults for all other modules via `lib.mkDefault`. Host configs import `modules/profiles` and then override specific options.
-
-Edition values: `desktop`, `laptop`, `home-theatre`, `server`, `server-headless`, `print-station`, `gaming`, `workstation`. The default is `server-headless` (no desktop).
-
-Each module follows the same pattern:
-```nix
-options.dimension.<name>.enable = lib.mkEnableOption "...";
-config = lib.mkIf cfg.enable { ... };
+```powershell
+wsl.exe --exec sh -lc 'cd /mnt/e/Projets/dimension-os && /nix/var/nix/profiles/default/bin/nix flake check --no-build'
+wsl.exe --exec sh -lc 'cd /mnt/e/Projets/dimension-os && /nix/var/nix/profiles/default/bin/nix eval .#nixosConfigurations.desktop-test.config.system.build.toplevel.drvPath'
+wsl.exe --exec sh -lc 'cd /mnt/e/Projets/dimension-os && /nix/var/nix/profiles/default/bin/nix build --max-jobs 1 --cores 1 .#nixosConfigurations.installer.config.system.build.isoImage'
 ```
 
-## Runtime services
+If WSL/Nix crashes during ISO build:
 
-Two systemd services implement the Hub↔Node protocol:
-
-**Hub** (`modules/hub/`) — Python HTTP server on `127.0.0.1:8787` (default). Persists node registry to `/var/lib/dimension-hub/nodes.json`. Runs as `dimension-hub` system user. New nodes arrive as `pending` and must be manually approved.
-
-**Node** (`modules/node/`) — Shell agent that posts machine identity to the Hub every 60s and fetches WireGuard peer lists. Runs as `dimension-node` system user. State lives in `/var/lib/dimension/node/`.
-
-**Hub admin CLI** (installed when Hub is enabled):
-```sh
-dimension-hub-admin list-pending
-dimension-hub-admin approve <node_id>
-dimension-hub-admin reject <node_id>
+```powershell
+wsl.exe --shutdown
 ```
 
-**WireGuard keygen helper** (when wireguard module is enabled):
-```sh
-dimension-wg-keygen   # generates private/public key pair locally
+Then retry with `--max-jobs 1 --cores 1`.
+
+## Current Priority
+
+Fix the VM blockers documented in [docs/STATUS.md](docs/STATUS.md):
+
+1. GRUB theme syntax error in installer ISO.
+2. SDDM custom theme not loading.
+3. SDDM login failure while TTY login works.
+
+## Architecture Shortcut
+
+- `flake.nix`: inputs, host discovery, module exports.
+- `modules/profiles`: edition composition layer.
+- `modules/base`: shared system defaults and installer helper.
+- `modules/desktop`: Plasma 6 base desktop.
+- `modules/kde-config`: KDE defaults, plasma-manager home config, KWin/Konsole defaults.
+- `modules/theme`: color scheme, fonts, Kvantum, Klassy.
+- `modules/sddm`: custom SDDM theme package.
+- `modules/plymouth`: boot splash.
+- `modules/hub` and `modules/node`: local Hub/Node prototype.
+
+## Legacy Docs
+
+The old documentation was archived during the 2026-04-29 consolidation:
+
+```text
+docs/legacy/2026-04-29-pre-consolidation/
 ```
 
-## Hub API summary
-
-Base URL: `http://127.0.0.1:8787` — loopback only, no TLS, not LAN-safe in current state.
-
-| Endpoint | Auth | Description |
-|---|---|---|
-| `GET /ping` | none | health check |
-| `POST /nodes/ping` | token | node registers/updates itself |
-| `GET /nodes` | token | list all nodes |
-| `GET /nodes/pending` | token (required) | list pending nodes |
-| `POST /nodes/approve` | token (required) | approve a node |
-| `POST /nodes/reject` | token (required) | reject a node |
-| `GET /wireguard/peers` | token | approved nodes with WireGuard keys |
-| `GET /wireguard/config?node_id=<id>` | token | peers visible to a specific node |
-
-Authentication is a Bearer token read from `devTokenFile`. Without it, the Hub logs a warning and accepts all requests (loopback dev only).
-
-## Key secrets paths (never in Git)
-
-| Path | Purpose |
-|---|---|
-| `/etc/dimension/secrets/hub-dev-token` | Shared token for Hub↔Node auth |
-| `/etc/dimension/secrets/wg-private-key` | WireGuard private key |
-
-The `dimension-secrets` group grants read access to both `dimension-hub` and `dimension-node` service users.
-
-## Hosts
-
-| Host | Edition | Purpose |
-|---|---|---|
-| `main` | `server-headless` | local Hub+Node dev machine |
-| `desktop-test` | (see config) | visual KDE validation |
-| `installer` | — | graphical live ISO |
-
-## Current state and roadmap
-
-Phases 1–3 (flake structure, desktop, editions) are complete. Phase 6 (stabilization) is the current priority. Phases 7–11 (network backbone, Hub/Node evolution, shared storage, search/shell, release readiness) are planned.
-
-The `modules/network/` module is still a placeholder. WireGuard is implemented but disabled by default — VPN subnet allocation and peer application are not yet wired up.
-
-## Project language
-
-Specification documents (`SPEC.md`, `ARCHITECTURE.md`, inline comments in hosts/) are in French. Code, NixOS option descriptions, and log messages are in English.
+Use it for historical context only.

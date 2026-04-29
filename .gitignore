@@ -6,3 +6,14 @@ assets/*.png
 
 # nix build
 result
+
+# local build artifacts
+*.iso
+
+# local agent/editor state
+.claude/
+
+# local build monitors
+check-build.sh
+watchdog.sh
+.build-status.txt

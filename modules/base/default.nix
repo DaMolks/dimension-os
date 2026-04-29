@@ -3,238 +3,417 @@
 let
   cfg = config.dimension;
   dimensionInstall = pkgs.writeShellScriptBin "dimension-install" ''
-    set -eu
+    set -u
 
-    host_id="''${1:-}"
-    generated_wg_public_key=""
-    generated_wg_key_dir=""
-
-    if [ "$#" -gt 1 ]; then
-      printf 'usage: dimension-install [host-id]\n' >&2
-      exit 1
+    SOURCE_FLAKE="/etc/dimension/flake"
+    if [ -n "''${DIMENSION_SOURCE_FLAKE:-}" ]; then
+      SOURCE_FLAKE="$DIMENSION_SOURCE_FLAKE"
     fi
 
-    detect_repo_root() {
-      if [ -n "''${DIMENSION_REPO_ROOT:-}" ] && [ -f "''${DIMENSION_REPO_ROOT}/flake.nix" ]; then
-        printf '%s\n' "$DIMENSION_REPO_ROOT"
+    WORK_FLAKE="/tmp/dimension-install-flake"
+    LOG_DIR="/tmp/dimension-install-logs"
+    DISK=""
+    EDITION=""
+    HOSTNAME=""
+    USERNAME=""
+    PASSWORD=""
+
+    print_banner() {
+      clear
+
+      if [ -r /etc/dimension-banner ]; then
+        cat /etc/dimension-banner
         return 0
       fi
 
-      if repo_root="$(${pkgs.git}/bin/git rev-parse --show-toplevel 2>/dev/null)" && [ -f "$repo_root/flake.nix" ]; then
-        printf '%s\n' "$repo_root"
-        return 0
-      fi
+      cols="$(tput cols 2>/dev/null || printf '80')"
+      cat <<'EOF_BANNER' | while IFS= read -r line; do
+ ____  _                              _
+|  _ \(_)_ __ ___   ___ _ __  ___(_) ___  _ __
+| | | | | '_ ` _ \ / _ \ '_ \/ __| |/ _ \| '_ \
+| |_| | | | | | | |  __/ | | \__ \ | (_) | | | |
+|____/|_|_| |_| |_|\___|_| |_|___/_|\___/|_| |_|
 
-      if [ -f "$PWD/flake.nix" ]; then
-        printf '%s\n' "$PWD"
-        return 0
-      fi
-
-      return 1
-    }
-
-    print_step() {
-      current="$1"
-      total="$2"
-      label="$3"
-
-      printf '\n[step %s/%s] %s\n' "$current" "$total" "$label" >&2
-    }
-
-    prompt_nonempty() {
-      prompt="$1"
-      default_value="''${2:-}"
-
-      while true; do
-        if [ -n "$default_value" ]; then
-          printf '%s [%s]: ' "$prompt" "$default_value" >&2
+                     Dimension OS
+EOF_BANNER
+        line_len="''${#line}"
+        if [ "$cols" -gt "$line_len" ]; then
+          pad=$(( (cols - line_len) / 2 ))
         else
-          printf '%s: ' "$prompt" >&2
+          pad=0
+        fi
+        printf '%*s%s\n' "$pad" "" "$line"
+      done
+    }
+
+    show_error() {
+      message="$1"
+
+      if command -v whiptail >/dev/null 2>&1; then
+        whiptail --title "Erreur" --msgbox "$message" 18 78 || true
+      else
+        printf '%s\n' "$message" >&2
+      fi
+    }
+
+    fail() {
+      show_error "$1"
+      exit 1
+    }
+
+    require_command() {
+      name="$1"
+      if ! command -v "$name" >/dev/null 2>&1; then
+        fail "Commande requise introuvable: $name"
+      fi
+    }
+
+    run_critical() {
+      title="$1"
+      shift
+
+      mkdir -p "$LOG_DIR"
+      step_log="$LOG_DIR/$(printf '%s' "$title" | tr ' /' '--').log"
+
+      print_banner
+      printf '\n%s\n' "$title"
+      printf 'Journal: %s\n\n' "$step_log"
+
+      "$@" 2>&1 | tee "$step_log"
+      status="''${PIPESTATUS[0]}"
+
+      if [ "$status" -ne 0 ]; then
+        tail_msg="$(tail -n 24 "$step_log" 2>/dev/null || true)"
+        fail "$title a echoue.\n\n$tail_msg"
+      fi
+    }
+
+    validate_hostname() {
+      value="$1"
+
+      case "$value" in
+        ""|[-]*|*-|*[!a-zA-Z0-9-]*)
+          fail "Le hostname doit contenir uniquement lettres, chiffres et tirets, sans tiret au debut ou a la fin."
+          ;;
+      esac
+
+      if [ "''${#value}" -gt 63 ]; then
+        fail "Le hostname doit faire 63 caracteres maximum."
+      fi
+    }
+
+    validate_username() {
+      value="$1"
+
+      case "$value" in
+        ""|[0-9-]*|*[!a-z0-9_-]*)
+          fail "Le nom d'utilisateur doit commencer par une lettre ou _, puis contenir seulement minuscules, chiffres, _ ou -."
+          ;;
+      esac
+
+      if [ "''${#value}" -gt 32 ]; then
+        fail "Le nom d'utilisateur doit faire 32 caracteres maximum."
+      fi
+    }
+
+    select_disk() {
+      while true; do
+        menu=()
+
+        while read -r name size model; do
+          [ -n "$name" ] || continue
+
+          case "$name" in
+            loop*) continue ;;
+          esac
+
+          model="''${model:-Disque}"
+          menu+=( "/dev/$name" "$size $model" )
+        done < <(lsblk -d -o NAME,SIZE,MODEL --noheadings | grep -v loop || true)
+
+        if [ "''${#menu[@]}" -eq 0 ]; then
+          fail "Aucun disque installable detecte."
         fi
 
-        read -r value
+        if ! DISK="$(whiptail --title "Dimension OS" --menu "Selectionner le disque d'installation" 20 78 10 "''${menu[@]}" 3>&1 1>&2 2>&3)"; then
+          exit 0
+        fi
 
-        if [ -z "$value" ]; then
-          value="$default_value"
+        if whiptail --title "Confirmation" --yesno "Tout le contenu de $DISK sera efface. Confirmer ?" 10 70; then
+          return 0
+        fi
+      done
+    }
+
+    select_edition() {
+      if ! EDITION="$(whiptail --title "Edition" --menu "Selectionner l'edition Dimension OS" 20 78 8 \
+        desktop "Bureau Plasma" \
+        laptop "Portable" \
+        gaming "Jeu" \
+        workstation "Station de travail" \
+        print-station "Impression" \
+        home-theatre "Home theatre" \
+        server "Serveur" \
+        server-headless "Serveur sans interface" \
+        3>&1 1>&2 2>&3)"; then
+        exit 0
+      fi
+    }
+
+    prompt_input() {
+      title="$1"
+      prompt="$2"
+      default_value="$3"
+
+      while true; do
+        if ! value="$(whiptail --title "$title" --inputbox "$prompt" 10 70 "$default_value" 3>&1 1>&2 2>&3)"; then
+          exit 0
         fi
 
         if [ -n "$value" ]; then
           printf '%s\n' "$value"
           return 0
         fi
+
+        whiptail --title "$title" --msgbox "Cette valeur est requise." 8 60
       done
     }
 
-    choose_edition() {
+    prompt_password() {
       while true; do
-        cat >&2 <<'EOF'
-Choose a Dimension edition:
-  1. desktop
-  2. laptop
-  3. gaming
-  4. workstation
-  5. print-station
-  6. home-theatre
-EOF
-        printf 'Edition [1-6]: ' >&2
-        read -r choice
-
-        case "$choice" in
-          1) printf 'desktop\n'; return 0 ;;
-          2) printf 'laptop\n'; return 0 ;;
-          3) printf 'gaming\n'; return 0 ;;
-          4) printf 'workstation\n'; return 0 ;;
-          5) printf 'print-station\n'; return 0 ;;
-          6) printf 'home-theatre\n'; return 0 ;;
-        esac
-
-        printf 'Invalid choice. Please select a number from 1 to 6.\n' >&2
-      done
-    }
-
-    prompt_yes_no() {
-      prompt="$1"
-      default_answer="''${2:-N}"
-
-      while true; do
-        printf '%s [%s]: ' "$prompt" "$default_answer" >&2
-        read -r answer
-
-        if [ -z "$answer" ]; then
-          answer="$default_answer"
+        if ! password="$(whiptail --title "Mot de passe" --passwordbox "Mot de passe pour $USERNAME" 10 70 3>&1 1>&2 2>&3)"; then
+          exit 0
         fi
 
-        case "$answer" in
-          y|Y|yes|YES) return 0 ;;
-          n|N|no|NO) return 1 ;;
-        esac
+        if ! confirm="$(whiptail --title "Confirmation" --passwordbox "Confirmer le mot de passe" 10 70 3>&1 1>&2 2>&3)"; then
+          exit 0
+        fi
+
+        if [ -z "$password" ]; then
+          whiptail --title "Mot de passe" --msgbox "Le mot de passe ne peut pas etre vide." 8 66
+        elif [ "$password" != "$confirm" ]; then
+          whiptail --title "Mot de passe" --msgbox "Les mots de passe ne correspondent pas." 8 66
+        else
+          PASSWORD="$password"
+          return 0
+        fi
       done
     }
 
-    confirm_overwrite() {
-      path="$1"
+    collect_machine_info() {
+      HOSTNAME="$(prompt_input "Machine" "Hostname" "dimension")"
+      validate_hostname "$HOSTNAME"
 
+      USERNAME="$(prompt_input "Utilisateur" "Nom d'utilisateur principal" "dimension")"
+      validate_username "$USERNAME"
+
+      prompt_password
+    }
+
+    confirm_summary() {
+      summary="Disque: $DISK
+Edition: $EDITION
+Hostname: $HOSTNAME
+Utilisateur: $USERNAME"
+
+      whiptail --title "Resume" --yesno "$summary" 14 72
+    }
+
+    collect_choices() {
       while true; do
-        printf 'File %s already exists. Overwrite? [y/N]: ' "$path" >&2
-        read -r answer
+        select_disk
+        select_edition
+        collect_machine_info
 
-        case "$answer" in
-          y|Y|yes|YES) return 0 ;;
-          n|N|no|NO|"") return 1 ;;
-        esac
+        if confirm_summary; then
+          return 0
+        fi
       done
     }
 
-    validate_name() {
-      value="$1"
-      label="$2"
+    copy_flake_tree() {
+      target="$1"
 
-      case "$value" in
-        *[!a-zA-Z0-9-]*|"")
-          printf '%s must contain only letters, digits, and hyphens.\n' "$label" >&2
-          exit 1
-          ;;
+      case "$target" in
+        "$WORK_FLAKE"|/mnt/etc/dimension) ;;
+        *) fail "Cible interne refusee: $target" ;;
       esac
+
+      if [ ! -d "$SOURCE_FLAKE" ] || [ ! -f "$SOURCE_FLAKE/flake.nix" ]; then
+        fail "Flake Dimension introuvable: $SOURCE_FLAKE"
+      fi
+
+      rm -rf -- "$target"
+      mkdir -p "$target" || fail "Impossible de creer $target"
+      cp -aL "$SOURCE_FLAKE/." "$target/" || fail "Impossible de copier le flake Dimension vers $target"
+      chmod -R u+w "$target" 2>/dev/null || true
     }
 
-    generate_wireguard_keys() {
-      host_ref="$1"
-      state_root="''${XDG_STATE_HOME:-$HOME/.local/state}/dimension/install/$host_ref"
-      timestamp="$(${pkgs.coreutils}/bin/date +%Y%m%d-%H%M%S)"
-      generated_wg_key_dir="$state_root/wireguard-$timestamp"
+    write_host_configuration() {
+      flake_dir="$1"
+      host_dir="$flake_dir/hosts/$HOSTNAME"
 
-      ${pkgs.coreutils}/bin/mkdir -p "$state_root"
-      ${dimensionWgKeygen}/bin/dimension-wg-keygen "$generated_wg_key_dir" >&2
+      mkdir -p "$host_dir" || fail "Impossible de creer $host_dir"
 
-      generated_wg_public_key="$(${pkgs.coreutils}/bin/cat "$generated_wg_key_dir/wg-public-key")"
-      printf 'WireGuard public key: %s\n' "$generated_wg_public_key" >&2
-    }
-
-    print_step 1 5 'Resolving repository root'
-
-    if ! repo_root="$(detect_repo_root)"; then
-      printf 'dimension-install must be run from the Dimension repository root,\n' >&2
-      printf 'or with DIMENSION_REPO_ROOT pointing to it.\n' >&2
-      exit 1
-    fi
-
-    print_step 2 5 'Collecting install details'
-
-    if [ -z "$host_id" ]; then
-      host_id="$(prompt_nonempty 'Host directory name' "")"
-    fi
-
-    host_name="$(prompt_nonempty 'Hostname' "$host_id")"
-    main_user="$(prompt_nonempty 'Main local user' 'dimension')"
-    edition="$(choose_edition)"
-    install_disk="$(prompt_nonempty 'Install disk (summary only)' '/dev/disk/by-id/CHANGE-ME')"
-    state_version="$(prompt_nonempty 'system.stateVersion' '24.05')"
-
-    validate_name "$host_id" 'Host directory name'
-    validate_name "$host_name" 'Hostname'
-
-    target_dir="$repo_root/hosts/$host_id"
-    target_file="$target_dir/configuration.nix"
-
-    print_step 3 5 'Preparing host configuration'
-
-    ${pkgs.coreutils}/bin/mkdir -p "$target_dir"
-
-    if [ -f "$target_file" ] && ! confirm_overwrite "$target_file"; then
-      printf 'Aborted.\n' >&2
-      exit 1
-    fi
-
-    cat > "$target_file" <<EOF
+      cat > "$host_dir/configuration.nix" <<EOF_HOST
 { lib, ... }:
-
 {
   imports = [
     ./hardware-configuration.nix
     ../../modules/base
     ../../modules/profiles
+    ../../modules/installer/disko-simple.nix
   ];
 
-  dimension.edition = "''${edition}";
-  dimension.mainUser = "''${main_user}";
+  dimension.edition = "$EDITION";
+  dimension.mainUser = "$USERNAME";
+  dimension.installer.disk.device = "$DISK";
 
-  networking.hostName = "''${host_name}";
+  networking.hostName = "$HOSTNAME";
 
-  boot.loader.grub = {
-    enable = true;
-    device = lib.mkDefault "nodev";
-  };
-
-  fileSystems."/" = {
-    device = lib.mkDefault "/dev/disk/by-label/nixos";
-    fsType = lib.mkDefault "ext4";
-  };
-
-  system.stateVersion = "''${state_version}";
+  system.stateVersion = "24.05";
 }
-EOF
+EOF_HOST
 
-    printf 'Generated %s\n' "$target_file" >&2
+      if [ ! -f "$host_dir/hardware-configuration.nix" ]; then
+        cat > "$host_dir/hardware-configuration.nix" <<'EOF_HW'
+{ ... }:
+{
+}
+EOF_HW
+      fi
+    }
 
-    print_step 4 5 'Handling optional WireGuard bootstrap'
+    prepare_work_flake() {
+      copy_flake_tree "$WORK_FLAKE"
+      write_host_configuration "$WORK_FLAKE"
+    }
 
-    if prompt_yes_no 'Generate WireGuard keys?' 'N'; then
-      generate_wireguard_keys "$host_id"
-    fi
+    generate_standalone_disko_config() {
+      target="/tmp/disko-$HOSTNAME.nix"
 
-    print_step 5 5 'Install summary'
-    printf 'Hostname: %s\n' "$host_name"
-    printf 'Edition: %s\n' "$edition"
-    printf 'Disk: %s\n' "$install_disk"
-    printf 'Host config: %s\n' "$target_file"
-    if [ -n "$generated_wg_public_key" ]; then
-      printf 'WireGuard public key: %s\n' "$generated_wg_public_key"
-      printf 'WireGuard key directory: %s\n' "$generated_wg_key_dir"
-    fi
+      cat > "$target" <<EOF_DISKO
+{
+  disko.devices.disk.main = {
+    type = "disk";
+    device = "$DISK";
+    content = {
+      type = "gpt";
+      partitions = {
+        ESP = {
+          type = "EF00";
+          size = "512M";
+          priority = 1;
+          content = {
+            type = "filesystem";
+            format = "vfat";
+            mountpoint = "/boot";
+            mountOptions = [ "umask=0077" ];
+          };
+        };
+        root = {
+          size = "100%";
+          content = {
+            type = "filesystem";
+            format = "ext4";
+            mountpoint = "/";
+          };
+        };
+      };
+    };
+  };
+}
+EOF_DISKO
 
-    printf 'Next steps:\n'
-    printf '  1. Run nixos-generate-config in the target system and copy hardware-configuration.nix.\n'
-    printf '  2. Add the new host to flake.nix when ready.\n'
+      printf '%s\n' "$target"
+    }
+
+    run_disko_from_flake() {
+      disko --mode destroy,format,mount --yes-wipe-all-disks --flake "$WORK_FLAKE#$HOSTNAME" \
+        || disko --mode disko --flake "$WORK_FLAKE#$HOSTNAME"
+    }
+
+    run_disko_fallback() {
+      disko_file="$(generate_standalone_disko_config)"
+
+      cd "$WORK_FLAKE" \
+        && nix run .#disko -- --mode destroy,format,mount --yes-wipe-all-disks "$disko_file" \
+        || nix run .#disko -- --mode disko "$disko_file"
+    }
+
+    partition_disk() {
+      if command -v disko >/dev/null 2>&1; then
+        run_disko_from_flake
+      else
+        run_disko_fallback
+      fi
+    }
+
+    prepare_installed_flake() {
+      copy_flake_tree /mnt/etc/dimension
+      write_host_configuration /mnt/etc/dimension
+
+      if [ ! -f /mnt/etc/nixos/hardware-configuration.nix ]; then
+        fail "hardware-configuration.nix n'a pas ete genere."
+      fi
+
+      cp /mnt/etc/nixos/hardware-configuration.nix \
+        "/mnt/etc/dimension/hosts/$HOSTNAME/hardware-configuration.nix" \
+        || fail "Impossible de copier hardware-configuration.nix dans le flake installe."
+    }
+
+    set_user_password() {
+      mkdir -p "$LOG_DIR"
+      step_log="$LOG_DIR/password.log"
+
+      print_banner
+      printf '\nConfiguration du mot de passe utilisateur\n'
+      printf 'Journal: %s\n\n' "$step_log"
+
+      if printf '%s:%s\n' "$USERNAME" "$PASSWORD" | nixos-enter --root /mnt -c 'chpasswd' > "$step_log" 2>&1; then
+        PASSWORD=""
+        return 0
+      fi
+
+      tail_msg="$(tail -n 24 "$step_log" 2>/dev/null || true)"
+      fail "La configuration du mot de passe a echoue.\n\n$tail_msg"
+    }
+
+    finish_install() {
+      whiptail --title "Dimension OS" --msgbox "Installation terminee. Retirer le support et redemarrer." 10 70
+
+      if whiptail --title "Redemarrage" --yesno "Redemarrer maintenant ?" 8 60; then
+        reboot
+      fi
+    }
+
+    main() {
+      require_command whiptail
+      require_command lsblk
+      require_command nixos-generate-config
+      require_command nixos-install
+      require_command nixos-enter
+
+      if [ "$#" -gt 0 ]; then
+        fail "usage: dimension-install"
+      fi
+
+      print_banner
+      whiptail --title "Dimension OS" --msgbox "Bienvenue dans l'installateur Dimension OS" 10 60
+
+      collect_choices
+      prepare_work_flake
+
+      # Partition and mount first; hardware config is generated before nixos-install.
+      run_critical "Partitionnement du disque" partition_disk
+      run_critical "Generation hardware-configuration" nixos-generate-config --root /mnt --no-filesystems
+      prepare_installed_flake
+      run_critical "Installation Dimension OS" nixos-install --root /mnt --flake "/mnt/etc/dimension#$HOSTNAME" --no-root-passwd
+      set_user_password
+      finish_install
+    }
+
+    main "$@"
   '';
   dimensionWgKeygen = pkgs.writeShellScriptBin "dimension-wg-keygen" ''
     set -eu
@@ -292,7 +471,6 @@ in
 
     users.users.${cfg.mainUser} = {
       isNormalUser = true;
-      description = "Dimension main user";
       extraGroups = [ "wheel" ];
     };
 

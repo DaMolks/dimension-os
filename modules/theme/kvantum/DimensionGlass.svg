@@ -1,0 +1,39 @@
+<!--
+  Inspirations retained: simple Kvantum SVG anatomy from transparent Nordic
+  and Utterly-Sweet variants, reduced to Dimension OS glass primitives.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="glassBorder" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0078D7" stop-opacity=".52"/>
+      <stop offset=".62" stop-color="#0078D7" stop-opacity=".14"/>
+      <stop offset="1" stop-color="#E8F0F8" stop-opacity=".08"/>
+    </linearGradient>
+    <linearGradient id="buttonFill" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#17324C" stop-opacity=".72"/>
+      <stop offset="1" stop-color="#071523" stop-opacity=".62"/>
+    </linearGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#00070F" flood-opacity=".42"/>
+    </filter>
+  </defs>
+
+  <rect id="window" x="16" y="16" width="96" height="72" rx="12" fill="#000F1F" fill-opacity=".70" stroke="url(#glassBorder)" stroke-width="2" filter="url(#softShadow)"/>
+  <rect id="frame" x="128" y="16" width="80" height="56" rx="9" fill="#071523" fill-opacity=".74" stroke="#23425E" stroke-opacity=".42" stroke-width="2"/>
+  <rect id="panel" x="16" y="104" width="192" height="38" rx="14" fill="#071523" fill-opacity=".58" stroke="#0078D7" stroke-opacity=".24" stroke-width="2"/>
+  <rect id="toolbar" x="16" y="154" width="192" height="30" rx="8" fill="#0A1C2E" fill-opacity=".54" stroke="#E8F0F8" stroke-opacity=".08" stroke-width="1"/>
+
+  <rect id="button-normal" x="16" y="204" width="40" height="28" rx="8" fill="url(#buttonFill)" stroke="#E8F0F8" stroke-opacity=".10" stroke-width="1"/>
+  <rect id="button-hover" x="64" y="204" width="40" height="28" rx="8" fill="#123A5E" fill-opacity=".76" stroke="#0078D7" stroke-opacity=".48" stroke-width="1"/>
+  <rect id="button-pressed" x="112" y="204" width="40" height="28" rx="8" fill="#005EA8" fill-opacity=".82" stroke="#54B8FF" stroke-opacity=".44" stroke-width="1"/>
+  <rect id="button-focus" x="160" y="204" width="40" height="28" rx="8" fill="#0E2E4A" fill-opacity=".76" stroke="#0078D7" stroke-opacity=".68" stroke-width="2"/>
+
+  <rect id="lineedit" x="128" y="88" width="80" height="28" rx="8" fill="#071523" fill-opacity=".66" stroke="#1D3550" stroke-opacity=".70" stroke-width="1"/>
+  <rect id="combo" x="128" y="124" width="80" height="28" rx="8" fill="#071523" fill-opacity=".66" stroke="#0078D7" stroke-opacity=".30" stroke-width="1"/>
+  <rect id="menu" x="216" y="16" width="32" height="80" rx="8" fill="#071523" fill-opacity=".78" stroke="#0078D7" stroke-opacity=".24" stroke-width="1"/>
+  <rect id="tooltip" x="216" y="108" width="32" height="40" rx="7" fill="#081827" fill-opacity=".84" stroke="#E8F0F8" stroke-opacity=".10" stroke-width="1"/>
+  <rect id="tab" x="216" y="160" width="32" height="24" rx="7" fill="#0A1C2E" fill-opacity=".62"/>
+  <rect id="tab-selected" x="216" y="196" width="32" height="24" rx="7" fill="#0078D7" fill-opacity=".82"/>
+  <rect id="progress" x="16" y="240" width="128" height="8" rx="4" fill="#071523" fill-opacity=".72"/>
+  <rect id="slider" x="152" y="240" width="80" height="8" rx="4" fill="#0078D7" fill-opacity=".78"/>
+</svg>

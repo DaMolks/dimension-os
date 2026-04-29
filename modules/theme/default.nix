@@ -2,6 +2,30 @@
 
 let
   cfg = config.dimension.theme;
+  kvantumPackage =
+    if lib.hasAttrByPath [ "kdePackages" "qtstyleplugin-kvantum" ] pkgs
+    then lib.getAttrFromPath [ "kdePackages" "qtstyleplugin-kvantum" ] pkgs
+    else pkgs.libsForQt5.qtstyleplugin-kvantum;
+  klassyPackage =
+    if lib.hasAttrByPath [ "kdePackages" "klassy" ] pkgs
+    then lib.getAttrFromPath [ "kdePackages" "klassy" ] pkgs
+    else pkgs.klassy;
+  notoCjkPackage =
+    if pkgs ? noto-fonts-cjk-sans
+    then pkgs.noto-fonts-cjk-sans
+    else pkgs.noto-fonts-cjk;
+  dimensionKvantumTheme = pkgs.stdenvNoCC.mkDerivation {
+    pname = "dimension-glass-kvantum";
+    version = "1.0.0";
+    dontUnpack = true;
+
+    installPhase = ''
+      theme_dir="$out/share/Kvantum/DimensionGlass"
+      install -d "$theme_dir"
+      install -m 0644 ${./kvantum/DimensionGlass.kvconfig} "$theme_dir/DimensionGlass.kvconfig"
+      install -m 0644 ${./kvantum/DimensionGlass.svg} "$theme_dir/DimensionGlass.svg"
+    '';
+  };
   dimensionColorScheme = pkgs.writeTextDir "share/color-schemes/Dimension.colors" ''
     [ColorEffects:Disabled]
     Color=56,56,56
@@ -130,8 +154,19 @@ in
     environment.systemPackages = with pkgs; [
       papirus-icon-theme
       layan-cursors
-      kdePackages.qtstyleplugin-kvantum
+      inter
+      noto-fonts
+      notoCjkPackage
+      jetbrains-mono
+      kvantumPackage
+      klassyPackage
       dimensionColorScheme
+      dimensionKvantumTheme
     ];
+
+    environment.etc."xdg/Kvantum/kvantum.kvconfig".text = ''
+      [General]
+      theme=DimensionGlass
+    '';
   };
 }

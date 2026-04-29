@@ -1,0 +1,15 @@
+<!--
+  Inspirations retained: Apple-like minimal monochrome marks, dimensional cube
+  geometry, and the Dimension OS #0078D7 accent palette.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Dimension logo">
+  <title>Dimension</title>
+  <g fill="none" stroke="#0078D7" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M64 42h58c42 0 76 34 76 86s-34 86-76 86H64V42z" stroke-width="22"/>
+    <path d="M100 84h26c22 0 40 18 40 44s-18 44-40 44h-26V84z" stroke-width="18" opacity=".92"/>
+    <path d="M82 58 128 32l46 26" stroke-width="10" opacity=".72"/>
+    <path d="M128 32v34" stroke-width="10" opacity=".72"/>
+    <path d="M82 198 128 224l46-26" stroke-width="10" opacity=".72"/>
+    <path d="M128 190v34" stroke-width="10" opacity=".72"/>
+  </g>
+</svg>

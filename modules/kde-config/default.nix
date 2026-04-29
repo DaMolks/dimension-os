@@ -3,27 +3,11 @@
 let
   cfg = config.dimension.kde;
   edition = config.dimension.edition or "desktop";
-  desktopEnabled = config.dimension.desktop.enable or false;
   isGaming = edition == "gaming";
-  isHomeTheatre = edition == "home-theatre";
-  favoriteLaunchers =
-    [
-      "dimension-search.desktop"
-      "systemsettings.desktop"
-      "org.kde.dolphin.desktop"
-      "org.kde.konsole.desktop"
-    ]
-    ++ lib.optional desktopEnabled "firefox.desktop";
-  kickoffFavorites = builtins.concatStringsSep ";" favoriteLaunchers;
-  taskManagerLaunchers = builtins.concatStringsSep "," (map (launcher: "applications:${launcher}") favoriteLaunchers);
-  quickLaunchDesktopFile = "file://${mangoHudToggle}/share/applications/dimension-mangohud-toggle.desktop";
-  systrayAppletId = if isGaming then 7 else 6;
-  clockAppletId = if isGaming then 8 else 7;
-  showDesktopAppletId = if isGaming then 9 else 8;
-  panelVisibility =
-    if isGaming then 1
-    else if isHomeTheatre then 2
-    else 0;
+  xpropPackage =
+    if pkgs ? xprop
+    then pkgs.xprop
+    else pkgs.xorg.xprop;
   mangoHudToggle = pkgs.symlinkJoin {
     name = "dimension-mangohud-toggle";
     paths = [
@@ -66,114 +50,202 @@ let
       '')
     ];
   };
-  plasmaPanelConfig = pkgs.writeText "dimension-plasma-org.kde.plasma.desktop-appletsrc" ''
-    [Containments][1]
-    activityId=
-    formfactor=2
-    immutability=1
-    lastScreen=0
-    location=4
-    plugin=org.kde.panel
-    wallpaperplugin=org.kde.image
+  dimensionForceBlur = pkgs.stdenvNoCC.mkDerivation {
+    pname = "dimension-kwin-forceblur";
+    version = "1.0.0";
+    dontUnpack = true;
 
-    [Containments][1][Applets][2]
-    immutability=1
-    plugin=org.kde.plasma.kickoff
+    installPhase = ''
+      script_dir="$out/share/kwin/scripts/dimension-forceblur"
+      install -d "$script_dir/contents/ui" "$script_dir/contents/config" "$out/share/kservices5" "$out/share/kservices6"
 
-    [Containments][1][Applets][2][Configuration][Shortcuts]
-    global=Alt+F1
+      cat > "$script_dir/metadata.desktop" <<'EOF'
+[Desktop Entry]
+Name=Dimension Force Blur
+Comment=Force KWin blur hints for Dimension glass windows
+Icon=preferences-system-windows-script-test
+Type=Service
+X-Plasma-API=declarativescript
+X-Plasma-MainScript=ui/main.qml
+X-KDE-ServiceTypes=KWin/Script
+X-KDE-PluginInfo-Author=Dimension OS
+X-KDE-PluginInfo-Name=dimension-forceblur
+X-KDE-PluginInfo-Version=1.0
+X-KDE-PluginInfo-License=MIT
+EOF
 
-    [Containments][1][Applets][3]
-    immutability=1
-    plugin=org.kde.plasma.panelspacer
+      cat > "$script_dir/metadata.json" <<'EOF'
+{
+  "KPackageStructure": "KWin/Script",
+  "KPlugin": {
+    "Authors": [
+      {
+        "Name": "Dimension OS"
+      }
+    ],
+    "Description": "Force KWin blur hints for Dimension glass windows",
+    "Icon": "preferences-system-windows-script-test",
+    "Id": "dimension-forceblur",
+    "License": "MIT",
+    "Name": "Dimension Force Blur",
+    "Version": "1.0"
+  },
+  "X-Plasma-API": "declarativescript",
+  "X-Plasma-MainScript": "ui/main.qml"
+}
+EOF
 
-    [Containments][1][Applets][3][Configuration][General]
-    expanding=true
+      cat > "$script_dir/contents/config/main.xml" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0 http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+  <kcfgfile name=""/>
+  <group name="General">
+    <entry name="patterns" type="String">
+      <label>Window classes, one per line.</label>
+      <default>plasmashell
+krunner
+ksmserver</default>
+    </entry>
+    <entry name="blurMatching" type="Bool">
+      <label>Blur matching classes instead of treating them as a blacklist.</label>
+      <default>false</default>
+    </entry>
+    <entry name="blurContent" type="Bool">
+      <label>Blur only the window content region.</label>
+      <default>true</default>
+    </entry>
+  </group>
+</kcfg>
+EOF
 
-    [Containments][1][Applets][4]
-    immutability=1
-    plugin=org.kde.plasma.icontasks
+      cat > "$script_dir/contents/ui/main.qml" <<'EOF'
+import QtQuick 2.15
+import org.kde.kwin 2.0
+import org.kde.plasma.core 2.0 as PlasmaCore
 
-    [Containments][1][Applets][4][Configuration][General]
-    launchers=${taskManagerLaunchers}
+Item {
+    id: root
 
-    [Containments][1][Applets][5]
-    immutability=1
-    plugin=org.kde.plasma.panelspacer
+    readonly property var patterns: KWin.readConfig("patterns", "plasmashell\nkrunner\nksmserver")
+        .split("\n")
+        .map(function(pattern) { return pattern.trim().toLowerCase(); })
+        .filter(function(pattern) { return pattern.length > 0; })
+    readonly property bool blurMatching: KWin.readConfig("blurMatching", false)
+    readonly property bool blurContent: KWin.readConfig("blurContent", true)
 
-    [Containments][1][Applets][5][Configuration][General]
-    expanding=true
+    PlasmaCore.DataSource {
+        id: shell
+        engine: "executable"
+        connectedSources: []
 
-    ${lib.optionalString isGaming ''
-    [Containments][1][Applets][6]
-    immutability=1
-    plugin=org.kde.plasma.quicklaunch
+        function run(command) {
+            shell.connectSource(command)
+        }
 
-    [Containments][1][Applets][6][Configuration][General]
-    launcherUrls=${quickLaunchDesktopFile}
-    showLauncherNames=false
-    ''}
-    [Containments][1][Applets][${toString systrayAppletId}]
-    immutability=1
-    plugin=org.kde.plasma.systemtray
+        onNewData: shell.disconnectSource(sourceName)
+    }
 
-    [Containments][1][Applets][${toString systrayAppletId}][Configuration]
-    SystrayContainmentId=20
+    function geometryOf(window) {
+        if (window.frameGeometry) {
+            return window.frameGeometry
+        }
+        return window.geometry
+    }
 
-    [Containments][1][Applets][${toString clockAppletId}]
-    immutability=1
-    plugin=org.kde.plasma.digitalclock
+    function classOf(window) {
+        var names = []
+        try { names.push(window.resourceClass.toString().toLowerCase()) } catch (e) {}
+        try { names.push(window.resourceName.toString().toLowerCase()) } catch (e) {}
+        return names
+    }
 
-    [Containments][1][Applets][${toString showDesktopAppletId}]
-    immutability=1
-    plugin=org.kde.plasma.showdesktop
+    function idOf(window) {
+        try {
+            if (window.windowId) {
+                return "0x" + window.windowId.toString(16)
+            }
+        } catch (e) {}
+        return ""
+    }
 
-    [Containments][1][General]
-    AppletOrder=2;3;4;5${lib.optionalString isGaming ";6"};${toString systrayAppletId};${toString clockAppletId};${toString showDesktopAppletId}
+    function shouldBlur(window) {
+        var names = classOf(window)
+        var matched = false
+        for (var i = 0; i < names.length; i++) {
+            if (patterns.indexOf(names[i]) >= 0) {
+                matched = true
+            }
+        }
+        return matched === blurMatching
+    }
 
-    [Containments][20]
-    activityId=
-    formfactor=2
-    immutability=1
-    lastScreen=0
-    location=4
-    plugin=org.kde.plasma.private.systemtray
-    wallpaperplugin=org.kde.image
+    function applyBlur(window) {
+        if (!window || !shouldBlur(window)) {
+            return
+        }
 
-    [Containments][30]
-    activityId=
-    formfactor=0
-    immutability=1
-    lastScreen=0
-    location=0
-    plugin=org.kde.desktopcontainment
-    wallpaperplugin=org.kde.image
+        var id = idOf(window)
+        if (id.length === 0) {
+            return
+        }
 
-    [Containments][30][Wallpaper][org.kde.image][General]
-    FillMode=2
-    Image=${../../assets/wallpapers/dimension-default.svg}
-  '';
-  plasmaShellConfig = pkgs.writeText "dimension-plasmashellrc" ''
-    [PlasmaViews][Panel 1]
-    panelVisibility=${toString panelVisibility}
+        if (!blurContent) {
+            shell.run("${xpropPackage}/bin/xprop -f _KDE_NET_WM_BLUR_BEHIND_REGION 32c -set _KDE_NET_WM_BLUR_BEHIND_REGION 0 -id " + id)
+            return
+        }
 
-    [PlasmaViews][Panel 1][Defaults]
-    floating=1
-    thickness=48
-  '';
-  kickoffFavoritesConfig = pkgs.writeText "dimension-kicker-extra-favoritesrc" ''
-    [General]
-    Prepend=${kickoffFavorites}
-    IgnoreDefaults=true
-  '';
+        var geometry = geometryOf(window)
+        if (!geometry) {
+            return
+        }
+
+        var region = "0,0," + geometry.width + "," + geometry.height
+        shell.run("${xpropPackage}/bin/xprop -id " + id + " -f _KDE_NET_WM_BLUR_BEHIND_REGION 32c -set _KDE_NET_WM_BLUR_BEHIND_REGION " + region)
+    }
+
+    function registerWindow(window) {
+        applyBlur(window)
+        if (window && window.geometryChanged) {
+            window.geometryChanged.connect(function() { applyBlur(window) })
+        }
+        if (window && window.frameGeometryChanged) {
+            window.frameGeometryChanged.connect(function() { applyBlur(window) })
+        }
+    }
+
+    Component.onCompleted: {
+        var windows = workspace.windowList ? workspace.windowList() : workspace.clientList()
+        for (var i = 0; i < windows.length; i++) {
+            registerWindow(windows[i])
+        }
+
+        if (workspace.windowAdded) {
+            workspace.windowAdded.connect(registerWindow)
+        } else if (workspace.clientAdded) {
+            workspace.clientAdded.connect(registerWindow)
+        }
+    }
+}
+EOF
+
+      install -m 0644 "$script_dir/metadata.desktop" "$out/share/kservices5/dimension-forceblur.desktop"
+      install -m 0644 "$script_dir/metadata.desktop" "$out/share/kservices6/dimension-forceblur.desktop"
+    '';
+  };
 in
 {
+  imports = [
+    ./plasma-home.nix
+  ];
+
   options.dimension.kde = {
     enable =
       lib.mkEnableOption "Dimension minimal KDE visual configuration";
 
     panel.enable =
-      lib.mkEnableOption "Dimension default Plasma 6 panel seed for new users";
+      lib.mkEnableOption "Dimension default Plasma 6 panel managed by plasma-manager";
   };
 
   config = lib.mkIf cfg.enable {
@@ -184,6 +256,8 @@ in
       (with pkgs; [
         papirus-icon-theme
         layan-cursors
+        xpropPackage
+        dimensionForceBlur
       ])
       ++ lib.optionals (cfg.panel.enable && isGaming) [
         pkgs.kdePackages.kdeplasma-addons
@@ -194,54 +268,163 @@ in
     # System-wide KDE defaults written to /etc/xdg/.
     # KDE reads these as defaults; per-user settings in ~/.config/ take
     # precedence once changed in KDE System Settings.
-    environment.etc =
-      {
-        "xdg/kdeglobals".text = ''
-          [Icons]
-          Theme=Papirus-Dark
+    environment.etc = {
+      "xdg/kdeglobals".text = ''
+        [Icons]
+        Theme=Papirus-Dark
 
-          [General]
-          ColorScheme=Dimension
+        [General]
+        ColorScheme=Dimension
+        font=Inter,11,-1,5,50,0,0,0,0,0
+        fixed=JetBrains Mono,10,-1,5,50,0,0,0,0,0
+        smallestReadableFont=Inter,8,-1,5,50,0,0,0,0,0
+        toolBarFont=Inter,10,-1,5,50,0,0,0,0,0
+        menuFont=Inter,10,-1,5,50,0,0,0,0,0
 
-          [KDE]
-          LookAndFeelPackage=org.kde.breezedark.desktop
-          SingleClick=false
+        [KDE]
+        LookAndFeelPackage=org.kde.breezedark.desktop
+        SingleClick=false
+        widgetStyle=kvantum
+        splashScreen=none
 
-          [Mouse]
-          cursorTheme=layan-cursors
-        '';
+        [Mouse]
+        cursorTheme=layan-cursors
+      '';
 
-        # kcminputrc is the authoritative source for cursor settings in KDE.
-        "xdg/kcminputrc".text = ''
-          [Mouse]
-          cursorTheme=layan-cursors
-          cursorSize=24
-        '';
+      "xdg/kwinrc".text = ''
+        [org.kde.kdecoration2]
+        library=com.github.paulmcauley.klassy
+        theme=Klassy
+        ButtonsOnLeft=
+        ButtonsOnRight=IAX
 
-        "xdg/baloofilerc".text = ''
-          [Basic Settings]
-          Indexing-Enabled=true
+        [Compositing]
+        OpenGLIsUnsafe=false
 
-          [General]
-          folders[$e]=$HOME,/mnt/dimension
-          exclude folders[$e]=/proc,/sys,/dev,/nix,/run,/boot,/tmp
-        '';
-      }
-      // lib.optionalAttrs cfg.panel.enable {
-        "skel/.config/plasma-org.kde.plasma.desktop-appletsrc" = {
-          source = plasmaPanelConfig;
-          mode = "444";
-        };
+        [Effect-blur]
+        BlurStrength=8
+        NoiseStrength=2
 
-        "skel/.config/plasmashellrc" = {
-          source = plasmaShellConfig;
-          mode = "444";
-        };
+        [Effect-Blur]
+        BlurStrength=8
+        NoiseStrength=2
 
-        "xdg/kicker-extra-favoritesrc" = {
-          source = kickoffFavoritesConfig;
-          mode = "444";
-        };
-      };
+        [Effect-overview]
+        BorderActivate=9
+
+        [Effect-Login]
+        Enabled=false
+        LoginEffect=none
+
+        [Plugins]
+        blurEnabled=true
+        contrastEnabled=true
+        translucencyEnabled=true
+        dimension-forceblurEnabled=true
+
+        [Script-dimension-forceblur]
+        patterns=plasmashell\nkrunner\nksmserver
+        blurMatching=false
+        blurContent=true
+      '';
+
+      "xdg/ksplashrc".text = ''
+        [KSplash]
+        Engine=none
+        Theme=none
+      '';
+
+      # kcminputrc is the authoritative source for cursor settings in KDE.
+      "xdg/kcminputrc".text = ''
+        [Mouse]
+        cursorTheme=layan-cursors
+        cursorSize=24
+      '';
+
+      "xdg/baloofilerc".text = ''
+        [Basic Settings]
+        Indexing-Enabled=true
+
+        [General]
+        folders[$e]=$HOME,/mnt/dimension
+        exclude folders[$e]=/proc,/sys,/dev,/nix,/run,/boot,/tmp
+      '';
+
+      "xdg/konsolerc".text = ''
+        [Desktop Entry]
+        DefaultProfile=Dimension.profile
+
+        [Favorite Profiles]
+        Favorites=Dimension.profile
+      '';
+
+      "xdg/konsole/Dimension.profile".text = ''
+        [Appearance]
+        ColorScheme=Dimension
+
+        [General]
+        Name=Dimension
+        Parent=FALLBACK/
+        TerminalColumns=120
+        TerminalRows=32
+
+        [Interaction Options]
+        AutoCopySelectedText=false
+        OpenLinksByDirectClickEnabled=true
+
+        [Scrolling]
+        HistoryMode=2
+        HistorySize=10000
+
+        [Terminal Features]
+        BlinkingCursorEnabled=true
+        FlowControlEnabled=true
+
+        [Text Appearance]
+        Font=JetBrains Mono,11,-1,5,50,0,0,0,0,0
+      '';
+
+      "xdg/konsole/Dimension.colorscheme".text = ''
+        [Background]
+        Color=0,15,31
+        Transparency=15
+
+        [BackgroundIntense]
+        Color=7,21,35
+        Transparency=10
+
+        [Color0]
+        Color=0,15,31
+
+        [Color1]
+        Color=255,98,111
+
+        [Color2]
+        Color=115,210,147
+
+        [Color3]
+        Color=255,194,82
+
+        [Color4]
+        Color=0,120,215
+
+        [Color5]
+        Color=150,120,220
+
+        [Color6]
+        Color=84,184,255
+
+        [Color7]
+        Color=232,240,248
+
+        [Foreground]
+        Color=232,240,248
+
+        [General]
+        Description=Dimension
+        Opacity=0.85
+        Wallpaper=
+      '';
+    };
   };
 }

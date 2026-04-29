@@ -23,7 +23,7 @@
     host = "127.0.0.1";
     port = 8787;
     # Token file must be created manually on the machine — never stored in Git.
-    # See docs/LOCAL_HUB_TEST.md for setup instructions.
+    # See docs/RUNTIME.md and docs/SECURITY.md for setup instructions.
     devTokenFile = "/etc/dimension/secrets/hub-dev-token";
   };
 

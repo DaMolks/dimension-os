@@ -3,7 +3,7 @@
 let
   cfg = config.dimension.plymouth;
   themeName = "dimension";
-  splashImage = ../../assets/wallpapers/dimension-boot-splash.png;
+  splashImage = ../../assets/wallpapers/dimension-boot-splash-v2.png;
   themePackage = pkgs.stdenv.mkDerivation {
     pname = "dimension-plymouth-theme";
     version = "1.0.0";

@@ -1,55 +1,86 @@
 # Dimension OS
 
-Dimension OS is a modular NixOS flake centered on KDE Plasma 6 and a future
-local-first multi-machine workflow.
+> Personal NixOS, declarative by design, built for a local-first multi-machine future.
 
-## Current State
+Dimension OS is a modular NixOS flake for building a coherent personal operating system: KDE Plasma 6 today, Dimension shell ideas tomorrow, and a Hub/Node backbone for local machines, storage, remote sessions, and WireGuard.
 
-The repository is in active prototype phase.
+The project is early, opinionated, and intentionally reproducible. The repo is the source of truth.
 
-Implemented today:
-- modular NixOS layout with edition-based profiles
-- KDE Plasma 6 desktop stack with SDDM, PipeWire, Bluetooth, and theming
-- Dimension Search entry wired to KRunner
-- default Plasma panel with pinned Dimension entries
-- opt-in mDNS/Avahi network foundation with optional Hub advertisement
-- local development Hub and Node services with token-based protection
-- manual Hub pairing approval workflow
-- WireGuard foundation module with a `dimension0` interface, disabled by default
-- Hub-distributed WireGuard peer list fetch and local Node persistence
-- optional Hub auto-discovery for nodes when `hubUrl` is unset
-- helper command `dimension-wg-keygen` for local WireGuard key generation
-- opt-in storage services through Samba, wsdd, SFTP, and guest SMB auto-mount
-- opt-in remote services through Sunshine and Wake-on-LAN
-- minimal interactive `dimension-install` helper for generating new host configs
+## What Exists Now
 
-Not implemented yet:
-- production-grade Hub and Node protocol
-- Hub-managed WireGuard interface application
-- LAN-safe Hub exposure
-- interactive pairing UX and stronger machine identity
-- discovery-aware and credentialed shared storage mounting across machines
-- native Dimension Settings app, widgets, and custom shell
-- full installer UX from ISO
+- NixOS flake with automatic host discovery.
+- Edition system: `desktop`, `laptop`, `home-theatre`, `server`, `server-headless`, `print-station`, `gaming`, `workstation`.
+- Installer ISO target with a CLI installer and disko-based GPT/EFI/ext4 layout.
+- KDE Plasma 6 desktop stack with SDDM, PipeWire, NetworkManager, Bluetooth, Papirus, Kvantum, Klassy, and plasma-manager.
+- Dimension visual assets: wallpapers, logo, Plymouth splash, SDDM background.
+- Local Hub service with a small HTTP API and pending node registry.
+- Local Node service that can ping the Hub and persist local state.
+- WireGuard foundation module, disabled by default.
+- Optional storage and remote modules: Samba/wsdd/SFTP, Sunshine, Wake-on-LAN.
 
-## Repository Layout
+## Current Truth
 
-- `modules/` contains the NixOS modules
-- `hosts/` contains declared host configurations
-- `docs/` contains runtime, security, API, and product notes
-- `assets/` contains icons and wallpapers shipped by the system
+Phase 2 is implemented but not validated. The latest VM test found three blockers:
 
-## Validation
+- GRUB theme syntax error at boot: `progress_bar` needs investigation in the installer theme.
+- SDDM falls back to an ugly/default-looking greeter instead of the Dimension glass theme.
+- SDDM rejects login while the same user/password works on TTY, likely keyboard layout or greeter fallback related.
 
-From WSL2:
+Start with [docs/STATUS.md](docs/STATUS.md) and [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) before building a new ISO.
 
-```sh
-cd /mnt/e/Projets/dimension-os
-nix flake check --no-build
+## Repository Map
+
+```text
+assets/       Wallpapers, icons, boot/login visual assets
+docs/         Current documentation, consolidated on 2026-04-29
+hosts/        Host configurations auto-discovered by flake.nix
+modules/      Dimension NixOS modules
+mockups/      UI mockups and experiments
+docs/legacy/  Archived documentation before the consolidation
 ```
 
-## Primary Hosts
+## Quick Commands
 
-- `main`: local Hub/Node development host, `server-headless` by default
-- `desktop-test`: visual validation host for desktop features
-- `installer`: graphical Plasma 6 live ISO target for installer testing
+Run Nix from WSL2:
+
+```powershell
+wsl.exe --exec sh -lc 'cd /mnt/e/Projets/dimension-os && /nix/var/nix/profiles/default/bin/nix flake check --no-build'
+wsl.exe --exec sh -lc 'cd /mnt/e/Projets/dimension-os && /nix/var/nix/profiles/default/bin/nix eval .#nixosConfigurations.desktop-test.config.system.build.toplevel.drvPath'
+wsl.exe --exec sh -lc 'cd /mnt/e/Projets/dimension-os && /nix/var/nix/profiles/default/bin/nix build --max-jobs 1 --cores 1 .#nixosConfigurations.installer.config.system.build.isoImage'
+```
+
+Copy the built ISO to the workspace:
+
+```powershell
+wsl.exe --exec sh -lc 'cd /mnt/e/Projets/dimension-os && cp -f result/iso/dimension-os-installer.iso dimension-os-installer-YYYYMMDD.iso && sha256sum dimension-os-installer-YYYYMMDD.iso'
+```
+
+## Documentation
+
+- [Current status](docs/STATUS.md)
+- [Getting started](docs/GETTING_STARTED.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Module catalog](docs/MODULES.md)
+- [Installer and ISO](docs/INSTALLER.md)
+- [Desktop and theming](docs/DESKTOP.md)
+- [Runtime services](docs/RUNTIME.md)
+- [Hub API](docs/API.md)
+- [Security](docs/SECURITY.md)
+- [Troubleshooting](docs/TROUBLESHOOTING.md)
+- [Roadmap](docs/ROADMAP.md)
+- [Legacy archive](docs/LEGACY.md)
+
+## Project Direction
+
+Dimension aims to become a personal OS layer where machines feel like one environment:
+
+- local-first identity,
+- explicit pairing,
+- safe WireGuard mesh,
+- unified search,
+- coherent desktop visuals,
+- shared storage,
+- streaming sessions,
+- declarative recovery and rollback.
+
+For now, the priority is brutally practical: make the installer ISO boot cleanly, make SDDM reliable, and keep the documentation aligned with the real repo.
