@@ -583,15 +583,22 @@ let
       cp ${../../assets/wallpapers/dimension-sddm-glass.png} "$theme_dir/background.png"
     '';
   };
+  sddmPackage = pkgs.kdePackages.sddm.overrideAttrs (old: {
+    buildCommand = old.buildCommand + ''
+      chmod -R u+w "$out/share"
+      mkdir -p "$out/share/sddm/themes"
+      ln -s ${themePackage}/share/sddm/themes/${themeName} \
+        "$out/share/sddm/themes/${themeName}"
+    '';
+  });
 in
 {
   options.dimension.sddm.enable =
     lib.mkEnableOption "Dimension custom SDDM greeter theme";
 
   config = lib.mkIf cfg.enable {
-    environment.systemPackages = [ themePackage ];
-
     services.displayManager.sddm = {
+      package = lib.mkForce sddmPackage;
       theme = lib.mkForce themeName;
       extraPackages = [
         pkgs.kdePackages.qt5compat.out
