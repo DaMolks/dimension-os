@@ -12,13 +12,15 @@ This folder is the current documentation set. Older documents were archived unde
 
 - [ARCHITECTURE.md](ARCHITECTURE.md): flake, hosts, modules, runtime shape.
 - [MODULES.md](MODULES.md): module catalog and important options.
+- [EDITIONS.md](EDITIONS.md): edition reference — what each edition enables.
 - [DESKTOP.md](DESKTOP.md): KDE, SDDM, theme, plasma-manager.
 - [INSTALLER.md](INSTALLER.md): ISO and install flow.
 
 ## Runtime And Operations
 
 - [RUNTIME.md](RUNTIME.md): services, paths, users, state files.
-- [API.md](API.md): Hub HTTP API.
+- [API.md](API.md): Hub HTTP API reference.
+- [WIREGUARD.md](WIREGUARD.md): WireGuard setup, key generation, Hub integration.
 - [SECURITY.md](SECURITY.md): secrets and exposure rules.
 - [ROADMAP.md](ROADMAP.md): phases and next work.
 - [LEGACY.md](LEGACY.md): archive map.

@@ -21,7 +21,7 @@ message-color: "#E8F0F8"
 terminal-font: "Unifont Regular"
 terminal-box: "terminal_*.png"
 
-progress_bar {
++ progress_bar {
   id = "__timeout__"
   top = 95%-32
   left = 50%-25%
@@ -34,7 +34,7 @@ progress_bar {
   fg_color = "#0078D7"
 }
 
-boot_menu {
++ boot_menu {
   left = 50%-400
   width = 800
   top = 12%

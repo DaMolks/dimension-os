@@ -1,63 +1,195 @@
 # Hub API
 
-Base URL in current dev mode:
+The Dimension Hub exposes a local HTTP API for node registration, pairing approval, and WireGuard peer exchange.
 
-```text
-http://127.0.0.1:8787
+**Current status:** local development only. The Hub binds to `127.0.0.1` by default and has no TLS. Do not expose it on LAN until the security model is redesigned.
+
+---
+
+## Configuration
+
+```nix
+dimension.hub = {
+  enable = true;
+  host = "127.0.0.1";   # default
+  port = 8787;          # default
+  devTokenFile = "/etc/dimension/secrets/hub-dev-token";
+};
 ```
 
-The Hub is not LAN-safe yet. Keep it loopback-only unless the security model is redesigned.
+Without `devTokenFile`, the Hub runs in unauthenticated local dev mode and logs a warning. Admin endpoints (approve/reject/pending) always require a token even in dev mode.
+
+---
 
 ## Authentication
 
-Bearer token from:
+Protected endpoints require:
 
-```text
-dimension.hub.devTokenFile
-dimension.node.hubTokenFile
+```
+Authorization: Bearer <token>
 ```
 
-Common local path:
+The token comes from the file at `devTokenFile`. Generate one:
 
-```text
-/etc/dimension/secrets/hub-dev-token
+```sh
+openssl rand -hex 32 > /etc/dimension/secrets/hub-dev-token
+chmod 600 /etc/dimension/secrets/hub-dev-token
+chown root:dimension-secrets /etc/dimension/secrets/hub-dev-token
 ```
 
-If no token is configured, current dev mode may accept requests. Treat that as local-only development behavior.
+---
 
 ## Endpoints
 
 ### `GET /ping`
 
-Health check.
+Health check. No auth required.
+
+**Response:**
+```
+200 OK
+ok
+```
+
+---
 
 ### `POST /nodes/ping`
 
-Node heartbeat and registration.
+Node heartbeat and self-registration. Protected.
+
+New nodes arrive with `status = "pending"`. Existing nodes update `hostname`, `last_seen`, and `wg_pubkey` while preserving their current status.
+
+**Request body:**
+```json
+{
+  "node_id": "550e8400-e29b-41d4-a716-446655440000",
+  "hostname": "my-machine",
+  "wg_pubkey": "<base64-wireguard-public-key>",
+  "created_at": "2026-04-29T12:00:00+02:00",
+  "version": 1
+}
+```
+
+Only `node_id`, `hostname`, and `wg_pubkey` are stored. Other fields are ignored.
+
+**Response:**
+```
+200 OK
+ok
+```
+
+**Errors:**
+
+| Code | Body | Reason |
+|------|------|--------|
+| 401 | `unauthorized` | Missing or wrong token |
+| 400 | `invalid json` | Malformed body |
+| 400 | `missing node_id` | `node_id` absent or empty |
+
+---
 
 ### `GET /nodes`
 
-List all known nodes.
+List all registered nodes. Protected.
+
+**Response:**
+```json
+[
+  {
+    "node_id": "550e8400-e29b-41d4-a716-446655440000",
+    "hostname": "my-machine",
+    "last_seen": "2026-04-29T12:00:00+02:00",
+    "wg_pubkey": "<base64>",
+    "status": "approved"
+  }
+]
+```
+
+Status values: `pending`, `approved`, `rejected`.
+
+---
 
 ### `GET /nodes/pending`
 
-List pending nodes.
+List nodes awaiting approval. Requires token to be configured on the Hub.
+
+**Response:** same shape as `GET /nodes`, filtered to `status = "pending"`.
+
+---
 
 ### `POST /nodes/approve`
 
-Approve a node.
+Approve a node. Requires token.
+
+**Request body:**
+```json
+{ "node_id": "550e8400-e29b-41d4-a716-446655440000" }
+```
+
+**Response:**
+```
+200 OK
+ok
+```
+
+**Errors:**
+
+| Code | Body | Reason |
+|------|------|--------|
+| 401 | `unauthorized` | Missing token or no token configured |
+| 404 | `node not found` | Unknown `node_id` |
+
+---
 
 ### `POST /nodes/reject`
 
-Reject a node.
+Reject a node. Same shape as `/nodes/approve`.
+
+---
 
 ### `GET /wireguard/peers`
 
-Return approved nodes with WireGuard public keys.
+Approved nodes that have submitted a WireGuard public key. Protected.
+
+**Response:**
+```json
+[
+  {
+    "node_id": "550e8400-e29b-41d4-a716-446655440000",
+    "hostname": "my-machine",
+    "wg_pubkey": "<base64>",
+    "last_seen": "2026-04-29T12:00:00+02:00"
+  }
+]
+```
+
+---
 
 ### `GET /wireguard/config?node_id=<id>`
 
-Return peers visible to a specific node.
+Peers visible to a specific node. Excludes the requesting node. Protected.
+
+**Query param:** `node_id` (required)
+
+**Response:**
+```json
+[
+  {
+    "node_id": "11111111-1111-1111-1111-111111111111",
+    "hostname": "peer-a",
+    "wg_pubkey": "<base64>"
+  }
+]
+```
+
+**Errors:**
+
+| Code | Body | Reason |
+|------|------|--------|
+| 400 | `missing node_id` | No `node_id` param |
+| 404 | `node not found` | `node_id` not in registry |
+
+---
 
 ## Admin CLI
 
@@ -66,3 +198,27 @@ dimension-hub-admin list-pending
 dimension-hub-admin approve <node_id>
 dimension-hub-admin reject <node_id>
 ```
+
+The admin CLI reads `DIMENSION_HUB_URL` (default `http://127.0.0.1:8787`) and `DIMENSION_HUB_DEV_TOKEN_FILE` (default `/etc/dimension/secrets/hub-dev-token`).
+
+---
+
+## State Files
+
+| Path | Content |
+|------|---------|
+| `/var/lib/dimension-hub/id` | Hub UUID, generated on first start |
+| `/var/lib/dimension-hub/identity.json` | Hub identity (id, hostname, created_at) |
+| `/var/lib/dimension-hub/nodes.json` | Node registry |
+| `/var/log/dimension-hub/hub.log` | Hub log |
+
+---
+
+## Limitations
+
+- Loopback only. Not safe for LAN exposure without TLS and stronger auth.
+- Bearer token is a shared secret, not per-node identity.
+- No node deletion endpoint.
+- No pagination on `GET /nodes`.
+- Peer list is distributed but not yet applied to WireGuard interfaces automatically.
+- Pairing is manual approval only, no interactive UI yet.
