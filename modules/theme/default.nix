@@ -168,5 +168,11 @@ in
       [General]
       theme=DimensionGlass
     '';
+
+    qt = {
+      enable = true;
+      platformTheme = "kde";
+      style = "kvantum";
+    };
   };
 }

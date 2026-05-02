@@ -13,15 +13,101 @@ let
 in
 {
   config = lib.mkIf cfg.enable {
-    home-manager.users.${mainUser} = { ... }: {
+    home-manager.users.${mainUser} = { config, pkgs, ... }:
+      let
+        desktopWallpaper = "${config.xdg.dataHome}/wallpapers/dimension-desktop-dark.png";
+        konsoleColorScheme = pkgs.writeText "Dimension.colorscheme" ''
+          [Background]
+          Color=0,15,31
+          Transparency=15
+
+          [BackgroundIntense]
+          Color=7,21,35
+          Transparency=10
+
+          [Color0]
+          Color=0,15,31
+
+          [Color1]
+          Color=255,98,111
+
+          [Color2]
+          Color=115,210,147
+
+          [Color3]
+          Color=255,194,82
+
+          [Color4]
+          Color=0,120,215
+
+          [Color5]
+          Color=150,120,220
+
+          [Color6]
+          Color=84,184,255
+
+          [Color7]
+          Color=232,240,248
+
+          [Foreground]
+          Color=232,240,248
+
+          [General]
+          Description=Dimension
+          Opacity=0.85
+          Wallpaper=
+        '';
+      in
+      {
       imports = [
         plasmaManagerModule
       ];
 
       home.stateVersion = stateVersion;
 
+      manual = {
+        html.enable = false;
+        json.enable = false;
+        manpages.enable = false;
+      };
+
+      xdg.dataFile."wallpapers/dimension-desktop-dark.png".source =
+        ../../assets/wallpapers/dimension-desktop-dark.png;
+
+      programs.konsole = {
+        enable = true;
+        defaultProfile = "Dimension";
+        customColorSchemes.Dimension = konsoleColorScheme;
+        profiles.Dimension = {
+          colorScheme = "Dimension";
+          font = {
+            name = "JetBrains Mono";
+            size = 11;
+          };
+          extraConfig = {
+            General = {
+              TerminalColumns = 120;
+              TerminalRows = 32;
+            };
+            "Interaction Options" = {
+              AutoCopySelectedText = false;
+              OpenLinksByDirectClickEnabled = true;
+            };
+            Scrolling = {
+              HistoryMode = 2;
+              HistorySize = 10000;
+            };
+            "Terminal Features" = {
+              BlinkingCursorEnabled = true;
+              FlowControlEnabled = true;
+            };
+          };
+        };
+      };
+
       programs.plasma = {
         enable = true;
+        overrideConfig = true;
 
         panels = lib.optional cfg.panel.enable {
           location = "bottom";
@@ -29,8 +115,8 @@ in
           floating = true;
           height = 48;
           lengthMode = "fit";
-          minLength = 720;
-          maxLength = 1160;
+          minLength = 560;
+          maxLength = 920;
           opacity = "translucent";
           widgets = [
             {
@@ -55,7 +141,6 @@ in
                 };
               };
             }
-            "org.kde.plasma.panelspacer"
             "org.kde.plasma.systemtray"
             {
               digitalClock = {
@@ -70,10 +155,14 @@ in
         };
 
         workspace = {
-          wallpaper = ../../assets/wallpapers/dimension-desktop-dark.png;
+          wallpaper = desktopWallpaper;
           colorScheme = "Dimension";
-          lookAndFeel = "org.kde.breezedark.desktop";
           iconTheme = "Papirus-Dark";
+          widgetStyle = "kvantum";
+          splashScreen = {
+            engine = "none";
+            theme = "None";
+          };
           cursor = {
             theme = "layan-cursors";
             size = 24;
@@ -126,18 +215,6 @@ in
         };
 
         configFile = {
-          kdeglobals = {
-            KDE = {
-              widgetStyle = "kvantum";
-              splashScreen = "none";
-            };
-          };
-
-          ksplashrc.KSplash = {
-            Engine = "none";
-            Theme = "None";
-          };
-
           kwinrc = {
             Plugins = {
               blurEnabled = true;

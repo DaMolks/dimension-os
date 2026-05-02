@@ -504,5 +504,10 @@ in
 
     networking.firewall.enable = true;
     services.openssh.enable = false;
+
+    # Determinate Nix 2.33 warns on the generated NixOS option docs because
+    # the derivation references the nixpkgs source path without a string
+    # context. Avoid that fragile build path in the installer/system closure.
+    documentation.nixos.enable = false;
   };
 }
