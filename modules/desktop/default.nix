@@ -9,6 +9,12 @@ in
   config = lib.mkIf cfg.enable {
     services.xserver.enable = true;
 
+    services.xserver.xkb = {
+      layout = "fr";
+      variant = "";
+      options = "";
+    };
+
     services.desktopManager.plasma6.enable = true;
 
     services.displayManager.sddm = {
