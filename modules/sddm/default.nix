@@ -96,10 +96,6 @@ let
                 passwordField.text = ""
                 passwordField.forceActiveFocus()
             }
-
-            function onLoginSucceeded() {
-                loginCardHost.state = "accepted"
-            }
         }
 
         Image {
@@ -176,15 +172,20 @@ let
             opacity: 0
             scale: 0.96
             state: ""
+            layer.enabled: true
+            layer.effect: DropShadow {
+                horizontalOffset: 0
+                verticalOffset: 18
+                radius: 30
+                samples: 48
+                color: "#99000000"
+                transparentBorder: true
+            }
 
             states: [
                 State {
                     name: "connecting"
                     PropertyChanges { target: loginCardHost; scale: 0.985; opacity: 0.86 }
-                },
-                State {
-                    name: "accepted"
-                    PropertyChanges { target: loginCardHost; scale: 1.035; opacity: 0 }
                 }
             ]
 
@@ -194,17 +195,6 @@ let
                     duration: 260
                     easing.type: Easing.OutCubic
                 }
-            }
-
-            DropShadow {
-                anchors.fill: loginCard
-                source: loginCard
-                horizontalOffset: 0
-                verticalOffset: 18
-                radius: 30
-                samples: 48
-                color: "#99000000"
-                transparentBorder: true
             }
 
             Rectangle {
@@ -593,24 +583,15 @@ let
       cp ${../../assets/wallpapers/dimension-sddm-glass.png} "$theme_dir/background.png"
     '';
   };
-  sddmPackage = pkgs.kdePackages.sddm.overrideAttrs (old: {
-    buildCommand = old.buildCommand + ''
-      rm -f "$out/share"
-      mkdir -p "$out/share"
-      cp -a ${pkgs.kdePackages.sddm.unwrapped}/share/. "$out/share/"
-      chmod -R u+w "$out/share"
-      mkdir -p "$out/share/sddm/themes"
-      ln -s ${themePackage}/share/sddm/themes/${themeName} "$out/share/sddm/themes/${themeName}"
-    '';
-  });
 in
 {
   options.dimension.sddm.enable =
     lib.mkEnableOption "Dimension custom SDDM greeter theme";
 
   config = lib.mkIf cfg.enable {
+    environment.systemPackages = [ themePackage ];
+
     services.displayManager.sddm = {
-      package = lib.mkForce sddmPackage;
       theme = lib.mkForce themeName;
       extraPackages = [
         pkgs.kdePackages.qt5compat.out
