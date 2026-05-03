@@ -3,6 +3,7 @@
 let
   cfg = config.dimension.sddm;
   themeName = "dimension";
+  sddmUnwrapped = pkgs.kdePackages.sddm-unwrapped;
   themeConf = pkgs.writeText "dimension-sddm-theme.conf" ''
     [General]
     name=Dimension
@@ -584,10 +585,40 @@ let
     '';
   };
   sddmPackage = pkgs.kdePackages.sddm.overrideAttrs (old: {
-    buildCommand = old.buildCommand + ''
-      chmod -R u+w "$out/share"
+    buildCommand =
+      builtins.replaceStrings
+        [ ''if [ "$i" == "bin" ]; then'' ]
+        [ ''if [ "$i" == "bin" ] || [ "$i" == "share" ]; then'' ]
+        old.buildCommand
+      + ''
+      mkdir -p "$out/share"
+      for item in ${sddmUnwrapped}/share/*; do
+        name="$(basename "$item")"
+        if [ "$name" = "sddm" ]; then
+          continue
+        fi
+        ln -s "$item" "$out/share/$name"
+      done
+
+      mkdir -p "$out/share/sddm"
+      for item in ${sddmUnwrapped}/share/sddm/*; do
+        name="$(basename "$item")"
+        if [ "$name" = "themes" ]; then
+          continue
+        fi
+        ln -s "$item" "$out/share/sddm/$name"
+      done
+
       mkdir -p "$out/share/sddm/themes"
-      ln -s ${themePackage}/share/sddm/themes/${themeName} \
+      for item in ${sddmUnwrapped}/share/sddm/themes/*; do
+        name="$(basename "$item")"
+        if [ "$name" = "${themeName}" ]; then
+          continue
+        fi
+        ln -s "$item" "$out/share/sddm/themes/$name"
+      done
+
+      ln -sfn ${themePackage}/share/sddm/themes/${themeName} \
         "$out/share/sddm/themes/${themeName}"
     '';
   });
