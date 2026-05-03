@@ -48,8 +48,6 @@ let
     import QtQuick 2.15
     import QtQuick.Controls 2.15 as Controls
     import QtQuick.Layouts 1.15
-    import QtQuick.Window 2.15
-    import Qt5Compat.GraphicalEffects
 
     Rectangle {
         id: root
@@ -108,24 +106,6 @@ let
             cache: true
         }
 
-        ShaderEffectSource {
-            id: fullBackgroundSource
-            anchors.fill: parent
-            sourceItem: backgroundImage
-            live: false
-            hideSource: false
-            visible: false
-        }
-
-        GaussianBlur {
-            anchors.fill: parent
-            source: fullBackgroundSource
-            radius: 10
-            samples: 24
-            opacity: 0.18
-            transparentBorder: false
-        }
-
         Rectangle {
             anchors.fill: parent
             color: "#33000F1F"
@@ -173,15 +153,6 @@ let
             opacity: 0
             scale: 0.96
             state: ""
-            layer.enabled: true
-            layer.effect: DropShadow {
-                horizontalOffset: 0
-                verticalOffset: 18
-                radius: 30
-                samples: 48
-                color: "#99000000"
-                transparentBorder: true
-            }
 
             states: [
                 State {
@@ -205,24 +176,6 @@ let
                 color: root.cardColor
                 border.width: 0
                 clip: true
-
-                ShaderEffectSource {
-                    id: cardBackgroundSource
-                    anchors.fill: parent
-                    sourceItem: backgroundImage
-                    sourceRect: Qt.rect(loginCard.mapToItem(root, 0, 0).x, loginCard.mapToItem(root, 0, 0).y, loginCard.width, loginCard.height)
-                    live: true
-                    hideSource: false
-                    visible: false
-                }
-
-                GaussianBlur {
-                    anchors.fill: parent
-                    source: cardBackgroundSource
-                    radius: 38
-                    samples: 32
-                    transparentBorder: true
-                }
 
                 Rectangle {
                     anchors.fill: parent
@@ -291,7 +244,7 @@ let
                         color: root.mutedTextColor
                         font.family: root.uiFont
                         font.pixelSize: 14
-                        text: sddm.hostname
+                        text: sddm.hostName
                         elide: Text.ElideRight
                     }
 
@@ -632,7 +585,6 @@ in
       package = lib.mkForce sddmPackage;
       theme = lib.mkForce themeName;
       extraPackages = [
-        pkgs.kdePackages.qt5compat.out
         pkgs.kdePackages.qtsvg
       ];
     };
