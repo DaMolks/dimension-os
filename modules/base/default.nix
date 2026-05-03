@@ -329,16 +329,15 @@ EOF_DISKO
     }
 
     run_disko_from_flake() {
-      disko --mode destroy,format,mount --yes-wipe-all-disks --flake "$WORK_FLAKE#$HOSTNAME" \
-        || disko --mode disko --flake "$WORK_FLAKE#$HOSTNAME"
+      disko --mode destroy,format,mount --yes-wipe-all-disks --flake "path:$WORK_FLAKE#$HOSTNAME" \
+        || disko --mode disko --flake "path:$WORK_FLAKE#$HOSTNAME"
     }
 
     run_disko_fallback() {
       disko_file="$(generate_standalone_disko_config)"
 
-      cd "$WORK_FLAKE" \
-        && nix run .#disko -- --mode destroy,format,mount --yes-wipe-all-disks "$disko_file" \
-        || nix run .#disko -- --mode disko "$disko_file"
+      nix run "path:$WORK_FLAKE#disko" -- --mode destroy,format,mount --yes-wipe-all-disks "$disko_file" \
+        || nix run "path:$WORK_FLAKE#disko" -- --mode disko "$disko_file"
     }
 
     partition_disk() {
@@ -360,6 +359,54 @@ EOF_DISKO
       cp /mnt/etc/nixos/hardware-configuration.nix \
         "/mnt/etc/dimension/hosts/$HOSTNAME/hardware-configuration.nix" \
         || fail "Impossible de copier hardware-configuration.nix dans le flake installe."
+    }
+
+    verify_install_mounts() {
+      if ! findmnt -rn /mnt >/dev/null 2>&1; then
+        fail "/mnt n'est pas monte apres le partitionnement."
+      fi
+
+      root_options="$(findmnt -rn -o OPTIONS /mnt 2>/dev/null || true)"
+      case ",$root_options," in
+        *,rw,*) ;;
+        *) fail "/mnt n'est pas monte en lecture-ecriture: $root_options" ;;
+      esac
+
+      if findmnt -rn /mnt/nix/store >/dev/null 2>&1; then
+        store_options="$(findmnt -rn -o OPTIONS /mnt/nix/store 2>/dev/null || true)"
+        case ",$store_options," in
+          *,rw,*) ;;
+          *) fail "/mnt/nix/store est monte en lecture seule: $store_options" ;;
+        esac
+      fi
+
+      mkdir -p /mnt/nix/store /mnt/tmp/dimension-nix-home /mnt/tmp/dimension-nix-cache \
+        /tmp/dimension-install \
+        || fail "Impossible de preparer les dossiers Nix dans /mnt."
+
+      if ! touch /mnt/.dimension-rw-test /mnt/nix/store/.dimension-rw-test 2>/dev/null; then
+        fail "/mnt ou /mnt/nix/store n'est pas accessible en ecriture."
+      fi
+
+      rm -f /mnt/.dimension-rw-test /mnt/nix/store/.dimension-rw-test
+    }
+
+    run_nixos_install() {
+      verify_install_mounts
+
+      env -u NIX_REMOTE \
+        HOME=/mnt/tmp/dimension-nix-home \
+        XDG_CACHE_HOME=/mnt/tmp/dimension-nix-cache \
+        NIX_USER_CONF_FILES=/dev/null \
+        TMPDIR=/tmp/dimension-install \
+        nixos-install \
+          --root /mnt \
+          --flake "path:/mnt/etc/dimension#$HOSTNAME" \
+          --no-root-passwd \
+          --no-channel-copy \
+          --no-write-lock-file \
+          --option auto-optimise-store false \
+          --option extra-experimental-features "nix-command flakes"
     }
 
     set_user_password() {
@@ -408,7 +455,7 @@ EOF_DISKO
       run_critical "Partitionnement du disque" partition_disk
       run_critical "Generation hardware-configuration" nixos-generate-config --root /mnt --no-filesystems
       prepare_installed_flake
-      run_critical "Installation Dimension OS" nixos-install --root /mnt --flake "/mnt/etc/dimension#$HOSTNAME" --no-root-passwd
+      run_critical "Installation Dimension OS" run_nixos_install
       set_user_password
       finish_install
     }

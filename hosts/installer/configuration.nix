@@ -162,6 +162,12 @@ in
     grubTheme = grubTheme;
     splashImage = bootSplash;
     volumeID = "DIMENSION_INSTALLER";
+    storeContents = lib.mkAfter [
+      pkgs.path
+      inputs.home-manager.outPath
+      inputs.plasma-manager.outPath
+      inputs.disko.outPath
+    ];
   };
 
   image = {
